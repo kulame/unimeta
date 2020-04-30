@@ -1,1 +1,6 @@
 -e .
+pytest==5.4.1
+coverage==5.1
+databases==0.3.1
+ipython==7.13.0
+aiomysql==0.0.20
