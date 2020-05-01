@@ -1,10 +1,13 @@
 from sqlalchemy import *
 from databases import Database
+import aiomysql
+import sqlalchemy
+from sqlalchemy.engine import reflection
 import pytest
 import functools
 import asyncio
 from devtools import debug
-
+from unimeta.table import Table
 
 def async_adapter(wrapped_func):
     """
@@ -22,6 +25,11 @@ def async_adapter(wrapped_func):
 
 @async_adapter
 async def test_meta() -> None:
-    async with Database('mysql://127.0.0.1:3306/hr') as database:
-        debug(database)
-    
+    meta = sqlalchemy.MetaData()
+    database_url = 'mysql://root:111111@127.0.0.1:3306/hr'
+    engine = sqlalchemy.create_engine(database_url)
+    meta.reflect(bind=engine)
+    debug(meta.tables)
+    for sql_table_name, sql_table in meta.tables.items():
+        table = Table.read_from_sqltable(sql_table)
+        
