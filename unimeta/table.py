@@ -16,7 +16,16 @@ class Column:
         pass
 
 class StringColumn(Column):
-    pass
+    length:int
+    
+    @classmethod
+    def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> StringColumn:
+        column = StringColumn()
+        column.nullable = sqlcolumn.nullable
+        column.name = sqlcolumn.name
+        column.length = sqlcolumn.type.length
+        return column
+
 
 class TextColumn(Column):
     pass
@@ -25,7 +34,6 @@ class IntegerColumn(Column):
 
     @classmethod
     def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> IntegerColumn:
-        debug(dir(sqlcolumn))
         column = IntegerColumn()
         column.nullable = sqlcolumn.nullable
         column.name = sqlcolumn.name
@@ -60,6 +68,8 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
     debug(ptype)
     if ptype is int:
         return IntegerColumn.read_from_sqlcolumn(sqlcolumn)
+    elif ptype is str:
+        return StringColumn.read_from_sqlcolumn(sqlcolumn)
 
     
 
@@ -71,12 +81,11 @@ class Table:
     
     @classmethod
     def read_from_sqltable(cls,sqltable:SQLTable) -> Table:
-        debug(sqltable)
-        debug(dir(sqltable))
-        debug(sqltable.name)
         table = Table()
         table.name = sqltable.name
         for sqlcolumn in sqltable.columns:
             column = get_column_from_sql(sqlcolumn)
+            debug(sqlcolumn)
             debug(column)
+            print("----------------")
 
