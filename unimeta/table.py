@@ -8,8 +8,35 @@ from decimal import Decimal
 from enum import Enum
 
 class CHTableEngine(Enum):
-    ReplacingMergeTree = 1
-    Distributed = 2
+    MergeTree = 1 
+    ReplacingMergeTree = 2
+    SummingMergeTre = 3 
+    AggregatingMergeTree = 4 
+    CollapsingMergeTree = 5
+    VersionedCollapsingMergeTree = 6
+    GraphiteMergeTree = 7
+    TinyLog = 8
+    StripeLog = 9 
+    Log = 10
+    Kafka = 11
+    MySQL = 12
+    ODBC = 13
+    JDBC = 14
+    HDFS = 15
+    Distributed = 16
+    MaterializedView = 17
+    Dictionary = 18
+    Merge = 19
+    File = 20
+    Null = 21
+    Set = 22
+    Join = 23
+    URL = 24
+    View = 25
+    Memory = 26
+    Buffer = 27
+
+
 
 class Column:
     name:str
