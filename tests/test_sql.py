@@ -32,4 +32,5 @@ async def test_meta() -> None:
     debug(meta.tables)
     for sql_table_name, sql_table in meta.tables.items():
         table = Table.read_from_sqltable(sql_table)
+        debug(table)
         
