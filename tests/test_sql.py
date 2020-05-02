@@ -26,11 +26,13 @@ def async_adapter(wrapped_func):
 @async_adapter
 async def test_meta() -> None:
     meta = sqlalchemy.MetaData()
-    database_url = 'mysql://root:111111@127.0.0.1:3306/hr'
+    database_url = 'mysql://root:111111@127.0.0.1:3306/employees'
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
     debug(meta.tables)
     for sql_table_name, sql_table in meta.tables.items():
         table = Table.read_from_sqltable(sql_table)
-        debug(table)
+        ddl = table.get_ch_ddl('employee')
+        debug(ddl)
+        print(ddl)
         

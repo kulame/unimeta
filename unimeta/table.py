@@ -8,33 +8,33 @@ from decimal import Decimal
 from enum import Enum
 
 class CHTableEngine(Enum):
-    MergeTree = 1 
-    ReplacingMergeTree = 2
-    SummingMergeTre = 3 
-    AggregatingMergeTree = 4 
-    CollapsingMergeTree = 5
-    VersionedCollapsingMergeTree = 6
-    GraphiteMergeTree = 7
-    TinyLog = 8
-    StripeLog = 9 
-    Log = 10
-    Kafka = 11
-    MySQL = 12
-    ODBC = 13
-    JDBC = 14
-    HDFS = 15
-    Distributed = 16
-    MaterializedView = 17
-    Dictionary = 18
-    Merge = 19
-    File = 20
-    Null = 21
-    Set = 22
-    Join = 23
-    URL = 24
-    View = 25
-    Memory = 26
-    Buffer = 27
+    MergeTree = "MergeTree" 
+    ReplacingMergeTree = "ReplacingMergeTree"
+    SummingMergeTree = 'SummingMergeTree'
+    AggregatingMergeTree = "AggregatingMergeTree"
+    CollapsingMergeTree = "CollapsingMergeTree"
+    VersionedCollapsingMergeTree = "VersionedCollapsingMergeTree"
+    GraphiteMergeTree = "GraphiteMergeTree"
+    TinyLog = "TinyLog"
+    StripeLog = "StripeLog"
+    Log = "Log"
+    Kafka = "Kafka"
+    MySQL = "MySQL"
+    ODBC = "ODBC"
+    JDBC = "JDBC"
+    HDFS = "HDFS"
+    Distributed = "Distributed"
+    MaterializedView = "MaterializedView"
+    Dictionary = "Dictionary"
+    Merge = "Merge"
+    File = "File"
+    Null = "Null"
+    Set = "Set"
+    Join = "Join"
+    URL = "URL"
+    View = "View"
+    Memory = "Memory"
+    Buffer = "Buffer"
 
 
 
@@ -189,6 +189,7 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
 
 
 class Table:
+    db_name:str
     table_name:str
     primary_key:Column
     columns:List[Column]
@@ -196,13 +197,33 @@ class Table:
     @classmethod
     def read_from_sqltable(cls,sqltable:SQLTable) -> Table:
         table = Table()
+        debug(sqltable.info)
         table.name = sqltable.name
+        columns:List[Column] = []
         for sqlcolumn in sqltable.columns:
             column = get_column_from_sql(sqlcolumn)
-            debug(sqlcolumn)
-            debug(column)
-            print("----------------")
+            columns.append(column)
+        table.columns = columns
+        for key in sqltable.primary_key:
+            table.primary_key = get_column_from_sql(key)
         return table
 
-    def get_ch_ddl(self) -> str:
-        pass
+    def get_ch_ddl(self,db_name) -> str:
+        ch_columns = []
+        for column in self.columns:
+            debug(column)
+            line = "`{table_name}` {type}".format(table_name = column.name, type=column.to_ch_type())
+            ch_columns.append(line)
+        ddl = """
+        CREATE TABLE {db_name}.{table_name}
+        (
+            {create_column}
+        )
+        ENGINE = {engine_name}
+        ORDER BY ({primary_key})
+        """.format(db_name=db_name,
+                   table_name=self.name,
+                   create_column=",".join(ch_columns),
+                   engine_name = CHTableEngine.CollapsingMergeTree,
+                   primary_key = self.primary_key.name)
+        return ddl
