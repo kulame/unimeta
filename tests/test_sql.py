@@ -11,6 +11,11 @@ from unimeta.table import Table
 from aiochclient import ChClient
 from aiohttp import ClientSession
 from loguru import logger
+import configparser
+config = configparser.ConfigParser()
+config.read(".env")
+
+
 def async_adapter(wrapped_func):
     """
     Decorator used to run async test cases.
@@ -24,6 +29,26 @@ def async_adapter(wrapped_func):
 
     return run_sync
 
+@async_adapter
+async def test_mock() -> None:
+    meta = sqlalchemy.MetaData()
+    database_url = config['mysql'].get("url")
+    debug(database_url)
+    database = Database(database_url)
+    await database.connect()
+    engine = sqlalchemy.create_engine(database_url)
+    meta.reflect(bind=engine)
+    sqltable = meta.tables['employees']
+    debug(sqltable)
+    table = Table.read_from_sqltable(sqltable,"employee")
+    debug(table)
+    hint = {
+        "email":"ascii_free_email",
+        "phone_number":"phone_number",
+        "first_name":"first_name",
+        "last_name":"last_name"
+    }
+    await table.mock_insert(database, hint)
 
 @async_adapter
 async def test_meta() -> None:
@@ -31,10 +56,8 @@ async def test_meta() -> None:
     database_url = 'mysql://root:111111@127.0.0.1:3306/employees'
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
-    debug(meta.tables)
     async with ClientSession() as s:
         chclient = ChClient(s)
         for sql_table_name, sql_table in meta.tables.items():
             table = Table.read_from_sqltable(sql_table,"employee")
             ddl = table.get_ch_ddl()
-            table.mock_insert()

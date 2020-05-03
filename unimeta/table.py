@@ -10,11 +10,42 @@ import json
 from loguru import logger
 from faker import Faker
 from faker.providers import python
+from databases import Database
+from loguru import logger
+from devtools import debug
+from decimal import *
 
-_fake = Faker()
-_fake.add_provider(python)
+_fake = Faker(['zh_CN'])
 
-
+def fake(c:Column, hint:dict={}) -> str:
+    if c.name in hint:
+        f = hint[c.name]
+        func = getattr(_fake,f)
+        return func()
+    elif isinstance(c,StringColumn):
+        return _fake.pystr(max_chars=c.length)
+    elif isinstance(c, TextColumn):
+        return _fake.text()
+    elif isinstance(c, IntegerColumn):
+        return _fake.pyint()
+    elif isinstance(c,DecimalColumn):
+        fstr = "%%.%df" % c.scale
+        left_digits = c.precision - c.scale 
+        return Decimal(fstr %_fake.pyfloat(left_digits=left_digits,positive=True))
+    elif isinstance(c, FloatColumn):
+        return _fake.pyfloat()
+    elif isinstance(c, BooleanColumn):
+        return _fake.pybool()
+    elif isinstance(c, DateTimeColumn):
+        return _fake.date_time()
+    elif isinstance(c, DateColumn):
+        return _fake.date()
+    elif isinstance(c, TimeColumn):
+        return _fake.iso8601()
+    elif isinstance(c, JSONColumn):
+        return  json.dumps(_fake.pydict())
+    else:
+        return _fake.name()
 
 class CHTableEngine(Enum):
     MergeTree = "MergeTree" 
@@ -61,8 +92,6 @@ class Column:
         column.name = sqlcolumn.name
         return column
 
-    def fake(self) -> str:
-        return ""
 
 class StringColumn(Column):
     length:int
@@ -81,8 +110,6 @@ class StringColumn(Column):
         else:
             return "String"
 
-    def fake(self) -> str:
-        return _fake.pystr()
 
 class TextColumn(Column):
 
@@ -92,8 +119,6 @@ class TextColumn(Column):
         else:
             return "String"
 
-    def fake(self) -> str:
-        return _fake.text()
 
 class IntegerColumn(Column):
 
@@ -110,17 +135,19 @@ class IntegerColumn(Column):
         else:
             return "UInt64"
 
-    def fake(self) -> int:
-        return _fake.pyint()
 
 
 class DecimalColumn(Column):
+    precision:int
+    scale:int
 
     @classmethod
     def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> DecimalColumn:
         column = DecimalColumn()
         column.nullable = sqlcolumn.nullable
         column.name = sqlcolumn.name
+        column.precision = sqlcolumn.type.precision
+        column.scale = sqlcolumn.type.scale
         return column
 
     def to_ch_type(self) -> str:
@@ -129,8 +156,6 @@ class DecimalColumn(Column):
         else:
             return "String"
 
-    def fake(self) -> Decimal:
-        return _fake.pydecimal()
 
 class FloatColumn(Column):
     pass
@@ -141,8 +166,6 @@ class FloatColumn(Column):
         else:
             return "Float32"
 
-    def fake(self) -> float:
-        return _fake.pyfloat()
 
 class BooleanColumn(Column):
     pass
@@ -153,8 +176,6 @@ class BooleanColumn(Column):
         else:
             return "UInt8"
 
-    def fake(self) -> bool:
-        return _fake.pybool()
 
 class DateTimeColumn(Column):
     pass
@@ -165,8 +186,6 @@ class DateTimeColumn(Column):
         else:
             return "DateTime"
 
-    def fake(self) -> datetime:
-        return _fake.date_time()
 
 class DateColumn(Column):
     
@@ -183,8 +202,6 @@ class DateColumn(Column):
         else:
             return "Date"
 
-    def fake(self) -> date:
-        return _fake.date()
 
 class TimeColumn(Column):
     
@@ -194,8 +211,6 @@ class TimeColumn(Column):
         else:
             return "String"
 
-    def fake(self) -> str:
-        return _fake.iso8601()
 
 class JSONColumn(Column):
     
@@ -212,7 +227,6 @@ class JSONColumn(Column):
 
 def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
     ptype = sqlcolumn.type.python_type
-    debug(ptype)
     if ptype is int:
         return IntegerColumn.read_from_sqlcolumn(sqlcolumn)
     elif ptype is str:
@@ -278,7 +292,6 @@ class Table:
     @classmethod
     def read_from_sqltable(cls,sqltable:SQLTable, db_name:str) -> Table:
         table = Table()
-        debug(sqltable.info)
         table.db_name = db_name
         table.name = sqltable.name
         columns:List[Column] = []
@@ -292,7 +305,6 @@ class Table:
 
     def get_primary_date_column(self):
         for column in self.columns:
-            debug(column)
             if column.nullable:
                 continue
             elif isinstance(column,DateColumn):
@@ -301,15 +313,17 @@ class Table:
                 return column
         return None
 
-    def mock_insert(self):
+    async def mock_insert(self,conn, hint):
         tpl = DDLTemplate.get_insert_template()
         columns = [column.name for column in self.columns]
-        values = [column.fake() for column in self.columns]
+        data = {column.name:fake(column, hint) for column in self.columns}
         sql = tpl.format(table_name=self.name,
-                   columns=",".join(map(lambda column: '`%s`' % column,columns)),
-                   values=",".join(map(lambda column: '`%s`' % column,values)))
+                   columns=",".join(columns),
+                   values=",".join(map(lambda value: ":{value}".format(value=value),columns)))
+
         debug(sql)
-        logger.info(sql)
+        debug(data)
+        await conn.execute(query=sql,values=data)
 
                 
 

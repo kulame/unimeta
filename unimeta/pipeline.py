@@ -35,6 +35,15 @@ class MysqlSource(Source):
     def close(self):
         self.stream.close()
 
+class MysqlSink(Sink):
+
+    def __init__(self,database_url):
+        Sink.__init__(self)
+        self.database = Database(database_url)
+    
+    def generate_fake_data(self,sql,data):
+        self.database.execute(query=sql,values=data)
+
 
 class ClickHouseSink(Sink):
     pass
