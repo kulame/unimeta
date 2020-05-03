@@ -35,11 +35,6 @@ async def test_meta() -> None:
     async with ClientSession() as s:
         chclient = ChClient(s)
         for sql_table_name, sql_table in meta.tables.items():
-            table = Table.read_from_sqltable(sql_table)
-            ddl = table.get_ch_ddl('employee')
-            if ddl is not None:
-                try:
-                    print(ddl)
-                    r = await chclient.execute(ddl)
-                except Exception as e:
-                    logger.exception("what !")
+            table = Table.read_from_sqltable(sql_table,"employee")
+            ddl = table.get_ch_ddl()
+            table.mock_insert()

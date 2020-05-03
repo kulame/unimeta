@@ -6,7 +6,14 @@ from devtools import debug
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+import json
 from loguru import logger
+from faker import Faker
+from faker.providers import python
+
+_fake = Faker()
+_fake.add_provider(python)
+
 
 
 class CHTableEngine(Enum):
@@ -54,6 +61,9 @@ class Column:
         column.name = sqlcolumn.name
         return column
 
+    def fake(self) -> str:
+        return ""
+
 class StringColumn(Column):
     length:int
     
@@ -71,6 +81,9 @@ class StringColumn(Column):
         else:
             return "String"
 
+    def fake(self) -> str:
+        return _fake.pystr()
+
 class TextColumn(Column):
 
     def to_ch_type(self) -> str:
@@ -78,6 +91,9 @@ class TextColumn(Column):
             return "Nullable(String)"
         else:
             return "String"
+
+    def fake(self) -> str:
+        return _fake.text()
 
 class IntegerColumn(Column):
 
@@ -94,6 +110,10 @@ class IntegerColumn(Column):
         else:
             return "UInt64"
 
+    def fake(self) -> int:
+        return _fake.pyint()
+
+
 class DecimalColumn(Column):
 
     @classmethod
@@ -109,6 +129,9 @@ class DecimalColumn(Column):
         else:
             return "String"
 
+    def fake(self) -> Decimal:
+        return _fake.pydecimal()
+
 class FloatColumn(Column):
     pass
 
@@ -117,6 +140,9 @@ class FloatColumn(Column):
             return "Nullable(Float32)"
         else:
             return "Float32"
+
+    def fake(self) -> float:
+        return _fake.pyfloat()
 
 class BooleanColumn(Column):
     pass
@@ -127,6 +153,9 @@ class BooleanColumn(Column):
         else:
             return "UInt8"
 
+    def fake(self) -> bool:
+        return _fake.pybool()
+
 class DateTimeColumn(Column):
     pass
     
@@ -135,6 +164,9 @@ class DateTimeColumn(Column):
             return "Nullable(DateTime)"
         else:
             return "DateTime"
+
+    def fake(self) -> datetime:
+        return _fake.date_time()
 
 class DateColumn(Column):
     
@@ -151,13 +183,19 @@ class DateColumn(Column):
         else:
             return "Date"
 
+    def fake(self) -> date:
+        return _fake.date()
+
 class TimeColumn(Column):
     
     def to_ch_type(self) -> str:
         if self.nullable:
             return "Nullable(String)"
         else:
-            return "String" 
+            return "String"
+
+    def fake(self) -> str:
+        return _fake.iso8601()
 
 class JSONColumn(Column):
     
@@ -167,13 +205,9 @@ class JSONColumn(Column):
         else:
             return "String"
 
-class EnumColumn(Column):
-    
-    def to_ch_type(self) -> str:
-        if self.nullable:
-            return "Nullable(Enum16)"
-        else:
-            return "Enum16"
+    def fake(self) -> str:
+        return json.dumps(_fake.pydict())
+
 
 
 def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
@@ -224,16 +258,28 @@ class ClickhouseTableTemplate():
         else:
             return cls.getDefault()
 
+
+class DDLTemplate():
+    @classmethod
+    def get_insert_template(cls) -> str:
+        return """
+            INSERT INTO {table_name}
+            ({columns})
+            VALUES
+            ({values});
+        """
+        
 class Table:
     db_name:str
-    table_name:str
+    name:str
     primary_key:Column
     columns:List[Column]
-    
+
     @classmethod
-    def read_from_sqltable(cls,sqltable:SQLTable) -> Table:
+    def read_from_sqltable(cls,sqltable:SQLTable, db_name:str) -> Table:
         table = Table()
         debug(sqltable.info)
+        table.db_name = db_name
         table.name = sqltable.name
         columns:List[Column] = []
         for sqlcolumn in sqltable.columns:
@@ -254,9 +300,20 @@ class Table:
             elif isinstance(column,DateTimeColumn):
                 return column
         return None
+
+    def mock_insert(self):
+        tpl = DDLTemplate.get_insert_template()
+        columns = [column.name for column in self.columns]
+        values = [column.fake() for column in self.columns]
+        sql = tpl.format(table_name=self.name,
+                   columns=",".join(map(lambda column: '`%s`' % column,columns)),
+                   values=",".join(map(lambda column: '`%s`' % column,values)))
+        debug(sql)
+        logger.info(sql)
+
                 
 
-    def get_ch_ddl(self,db_name) -> str:
+    def get_ch_ddl(self) -> str:
         ch_columns = []
         for column in self.columns:
             line = "`{table_name}` {type}".format(table_name = column.name, type=column.to_ch_type())
@@ -267,7 +324,7 @@ class Table:
             return None
         else:
             tpl = ClickhouseTableTemplate.get(CHTableEngine.VersionedCollapsingMergeTree)
-            ddl = tpl.format(db_name=db_name,
+            ddl = tpl.format(db_name=self.db_name,
                              table_name=self.name,
                              create_column=",".join(ch_columns),
                              primary_date = primary_date_column.name,
