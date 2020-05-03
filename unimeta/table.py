@@ -6,6 +6,8 @@ from devtools import debug
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from loguru import logger
+
 
 class CHTableEngine(Enum):
     MergeTree = "MergeTree" 
@@ -187,6 +189,40 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
         return DecimalColumn.read_from_sqlcolumn(sqlcolumn)
     
 
+class ClickhouseTableTemplate():
+
+    @classmethod
+    def getVersionedCollapsingMergeTree(cls) -> str:
+        return """
+            CREATE TABLE IF NOT EXISTS {db_name}.{table_name}
+            (
+                 Sign Int8,
+                 Version UInt8,
+                {create_column}
+            )
+            ENGINE = VersionedCollapsingMergeTree(Sign, Version)
+            PARTITION BY toYYYYMM({primary_date})
+            ORDER BY ({primary_key})
+        """
+    
+    @classmethod
+    def getDefault(cls) -> str:
+        return """
+            CREATE TABLE IF NOT EXISTS  {db_name}.{table_name}
+            (
+                {create_column}
+            )
+            ENGINE = {engine_name}()
+            PARTITION BY toYYYYMM({primary_date})
+            ORDER BY ({primary_key})
+        """
+
+    @classmethod
+    def get(cls,engine:CHTableEngine)->str:
+        if engine is CHTableEngine.VersionedCollapsingMergeTree:
+            return cls.getVersionedCollapsingMergeTree()
+        else:
+            return cls.getDefault()
 
 class Table:
     db_name:str
@@ -208,22 +244,32 @@ class Table:
             table.primary_key = get_column_from_sql(key)
         return table
 
+    def get_primary_date_column(self):
+        for column in self.columns:
+            debug(column)
+            if column.nullable:
+                continue
+            elif isinstance(column,DateColumn):
+                return column
+            elif isinstance(column,DateTimeColumn):
+                return column
+        return None
+                
+
     def get_ch_ddl(self,db_name) -> str:
         ch_columns = []
         for column in self.columns:
-            debug(column)
             line = "`{table_name}` {type}".format(table_name = column.name, type=column.to_ch_type())
             ch_columns.append(line)
-        ddl = """
-        CREATE TABLE {db_name}.{table_name}
-        (
-            {create_column}
-        )
-        ENGINE = {engine_name}
-        ORDER BY ({primary_key})
-        """.format(db_name=db_name,
-                   table_name=self.name,
-                   create_column=",".join(ch_columns),
-                   engine_name = CHTableEngine.CollapsingMergeTree,
-                   primary_key = self.primary_key.name)
-        return ddl
+        primary_date_column = self.get_primary_date_column()
+        if primary_date_column is None:
+            logger.error("no primary date column")
+            return None
+        else:
+            tpl = ClickhouseTableTemplate.get(CHTableEngine.VersionedCollapsingMergeTree)
+            ddl = tpl.format(db_name=db_name,
+                             table_name=self.name,
+                             create_column=",".join(ch_columns),
+                             primary_date = primary_date_column.name,
+                             primary_key = self.primary_key.name)
+            return ddl

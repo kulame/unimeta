@@ -8,7 +8,9 @@ import functools
 import asyncio
 from devtools import debug
 from unimeta.table import Table
-
+from aiochclient import ChClient
+from aiohttp import ClientSession
+from loguru import logger
 def async_adapter(wrapped_func):
     """
     Decorator used to run async test cases.
@@ -30,9 +32,14 @@ async def test_meta() -> None:
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
     debug(meta.tables)
-    for sql_table_name, sql_table in meta.tables.items():
-        table = Table.read_from_sqltable(sql_table)
-        ddl = table.get_ch_ddl('employee')
-        debug(ddl)
-        print(ddl)
-        
+    async with ClientSession() as s:
+        chclient = ChClient(s)
+        for sql_table_name, sql_table in meta.tables.items():
+            table = Table.read_from_sqltable(sql_table)
+            ddl = table.get_ch_ddl('employee')
+            if ddl is not None:
+                try:
+                    print(ddl)
+                    r = await chclient.execute(ddl)
+                except Exception as e:
+                    logger.exception("what !")
