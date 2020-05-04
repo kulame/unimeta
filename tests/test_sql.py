@@ -12,6 +12,8 @@ from aiochclient import ChClient
 from aiohttp import ClientSession
 from loguru import logger
 import configparser
+from unimeta.libs.liburl import parse_url
+
 config = configparser.ConfigParser()
 config.read(".env")
 
@@ -29,13 +31,18 @@ def async_adapter(wrapped_func):
 
     return run_sync
 
+
+def test_parse() -> None:
+    database_url = config['mysql'].get("url")
+    db = parse_url(database_url)
+    debug(db)
+
 @async_adapter
 async def test_mock() -> None:
     meta = sqlalchemy.MetaData()
     database_url = config['mysql'].get("url")
     debug(database_url)
-    database = Database(database_url)
-    await database.connect()
+
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
     sqltable = meta.tables['employees']
@@ -48,12 +55,15 @@ async def test_mock() -> None:
         "first_name":"first_name",
         "last_name":"last_name"
     }
-    await table.mock_insert(database, hint)
+    
+    async with Database(database_url) as database:
+        await table.mock_insert(database, hint)
+
 
 @async_adapter
 async def test_meta() -> None:
     meta = sqlalchemy.MetaData()
-    database_url = 'mysql://root:111111@127.0.0.1:3306/employees'
+    database_url = 'mysql://root:111111@127.0.0.1:3306/hr'
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
     async with ClientSession() as s:

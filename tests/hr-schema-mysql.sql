@@ -16,16 +16,18 @@ USE hr;
 ***************************CREATING TABLES************************
 **************************************************************** */
 CREATE TABLE regions (
+	id int auto_increment,
 	region_id INT (11) UNSIGNED NOT NULL,
 	region_name VARCHAR(25),
-	PRIMARY KEY (region_id)
+	PRIMARY KEY (id)
 	);
 
 CREATE TABLE countries (
+	id int auto_increment,
 	country_id CHAR(2) NOT NULL,
 	country_name VARCHAR(40),
 	region_id INT (11) UNSIGNED NOT NULL,
-	PRIMARY KEY (country_id)
+	PRIMARY KEY (id)
 );
 
 
@@ -40,7 +42,7 @@ CREATE TABLE locations (
 	);
 
 CREATE TABLE departments (
-	department_id INT (11) UNSIGNED NOT NULL,
+	department_id INT (11) UNSIGNED NOT NULL AUTO_INCREMENT,
 	department_name VARCHAR(30) NOT NULL,
 	manager_id INT (11) UNSIGNED,
 	location_id INT (11) UNSIGNED,
@@ -48,7 +50,7 @@ CREATE TABLE departments (
 	);
 
 CREATE TABLE jobs (
-	job_id VARCHAR(10) NOT NULL,
+	job_id int auto_increment,
 	job_title VARCHAR(35) NOT NULL,
 	min_salary DECIMAL(8, 0) UNSIGNED,
 	max_salary DECIMAL(8, 0) UNSIGNED,
@@ -56,7 +58,7 @@ CREATE TABLE jobs (
 	);
 
 CREATE TABLE employees (
-	employee_id INT (11) UNSIGNED NOT NULL,
+	employee_id INT (11) UNSIGNED NOT NULL auto_increment,
 	first_name VARCHAR(20),
 	last_name VARCHAR(25) NOT NULL,
 	email VARCHAR(25) NOT NULL,
@@ -71,11 +73,13 @@ CREATE TABLE employees (
 	);
 
 CREATE TABLE job_history (
+	id int auto_increment,
 	employee_id INT (11) UNSIGNED NOT NULL,
 	start_date DATE NOT NULL,
 	end_date DATE NOT NULL,
 	job_id VARCHAR(10) NOT NULL,
-	department_id INT (11) UNSIGNED NOT NULL
+	department_id INT (11) UNSIGNED NOT NULL,
+	primary key (id)
 	);
 
 COMMIT;

@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import List
 from sqlalchemy.sql.schema import Table as SQLTable
 from sqlalchemy.sql.schema import Column as SQLColumn
+import sqlalchemy
 from devtools import debug
 from datetime import date, datetime
 from decimal import Decimal
@@ -13,7 +14,8 @@ from faker.providers import python
 from databases import Database
 from loguru import logger
 from devtools import debug
-from decimal import *
+from unimeta.libs.liburl import parse_url
+
 
 _fake = Faker(['zh_CN'])
 
@@ -81,6 +83,7 @@ class CHTableEngine(Enum):
 class Column:
     name:str
     nullable:bool
+    autoincrement:bool = False
 
     def to_ch_type(self) -> str:
         pass
@@ -121,12 +124,14 @@ class TextColumn(Column):
 
 
 class IntegerColumn(Column):
+    autoincrement:bool
 
     @classmethod
     def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> IntegerColumn:
         column = IntegerColumn()
         column.nullable = sqlcolumn.nullable
         column.name = sqlcolumn.name
+        column.autoincrement = sqlcolumn.autoincrement
         return column
 
     def to_ch_type(self) -> str:
@@ -315,15 +320,16 @@ class Table:
 
     async def mock_insert(self,conn, hint):
         tpl = DDLTemplate.get_insert_template()
-        columns = [column.name for column in self.columns]
-        data = {column.name:fake(column, hint) for column in self.columns}
+        columns = [column.name for column in self.columns if column.autoincrement is False]
+        data = {column.name:fake(column, hint) for column in self.columns if column.autoincrement is False}
         sql = tpl.format(table_name=self.name,
                    columns=",".join(columns),
                    values=",".join(map(lambda value: ":{value}".format(value=value),columns)))
 
         debug(sql)
         debug(data)
-        await conn.execute(query=sql,values=data)
+        r = await conn.execute(query=sql,values=data)
+        debug(r)
 
                 
 
@@ -344,3 +350,16 @@ class Table:
                              primary_date = primary_date_column.name,
                              primary_key = self.primary_key.name)
             return ddl
+
+    @classmethod
+    def metadata(cls, database_url) -> dict:
+        meta = sqlalchemy.MetaData()
+        engine = sqlalchemy.create_engine(database_url)
+        config = parse_url(database_url)
+        meta.reflect(bind=engine)
+        metatable = {}
+        for sql_table_name, sql_table in meta.tables.items():
+            table = Table.read_from_sqltable(sql_table,config['name'])
+            key = "{db}/{table}".format(db=table.db_name,table=table.name)
+            metatable[key] = table
+        return metatable
