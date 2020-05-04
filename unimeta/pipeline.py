@@ -8,6 +8,8 @@ from pymysqlreplication.row_event import (
 from devtools import debug
 from unimeta.event import Event, EventType
 from unimeta.table import Table
+from clickhouse_driver import Client
+
 class Sink():
     
     def publish(self):
@@ -31,6 +33,12 @@ class MysqlSource(Source):
                                          server_id=100,
                                          blocking=True,
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
+        tables = self.metatable.values()
+        debug(tables)
+  
+        self.ch = Client("127.0.0.1")
+        for table in tables:
+            self.ch.execute(table.get_ch_ddl())
 
     def subscribe(self):
         for binlogevent in self.stream:
@@ -46,6 +54,7 @@ class MysqlSource(Source):
                 elif isinstance(binlogevent, WriteRowsEvent):
                     event = Event.parse_binlog(table,EventType.INSERT,row)
                     debug(event)
+                    event.insert_ch(self.ch)
 
     def close(self):
         self.stream.close()

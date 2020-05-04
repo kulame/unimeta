@@ -19,6 +19,7 @@ CREATE TABLE regions (
 	id int auto_increment,
 	region_id INT (11) UNSIGNED NOT NULL,
 	region_name VARCHAR(25),
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (id)
 	);
 
@@ -27,6 +28,7 @@ CREATE TABLE countries (
 	country_id CHAR(2) NOT NULL,
 	country_name VARCHAR(40),
 	region_id INT (11) UNSIGNED NOT NULL,
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (id)
 );
 
@@ -38,6 +40,7 @@ CREATE TABLE locations (
 	city VARCHAR(30) NOT NULL,
 	state_province VARCHAR(25),
 	country_id CHAR(2) NOT NULL,
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (location_id)
 	);
 
@@ -46,6 +49,7 @@ CREATE TABLE departments (
 	department_name VARCHAR(30) NOT NULL,
 	manager_id INT (11) UNSIGNED,
 	location_id INT (11) UNSIGNED,
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (department_id)
 	);
 
@@ -54,6 +58,7 @@ CREATE TABLE jobs (
 	job_title VARCHAR(35) NOT NULL,
 	min_salary DECIMAL(8, 0) UNSIGNED,
 	max_salary DECIMAL(8, 0) UNSIGNED,
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (job_id)
 	);
 
@@ -69,6 +74,7 @@ CREATE TABLE employees (
 	commission_pct DECIMAL(2, 2),
 	manager_id INT (11) UNSIGNED,
 	department_id INT (11) UNSIGNED,
+	created_at DATETIME NOT NULL,
 	PRIMARY KEY (employee_id)
 	);
 
@@ -79,6 +85,7 @@ CREATE TABLE job_history (
 	end_date DATE NOT NULL,
 	job_id VARCHAR(10) NOT NULL,
 	department_id INT (11) UNSIGNED NOT NULL,
+	created_at DATETIME NOT NULL,
 	primary key (id)
 	);
 

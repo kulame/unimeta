@@ -11,7 +11,8 @@ import inspect
 from devtools import debug
 import pydantic
 import json
-from unimeta.table import Table
+from unimeta.table import Table, DDLTemplate
+from unimeta.libs.libformat import jsonity
 
 
 class EventType(Enum):
@@ -42,33 +43,51 @@ class Meta(BaseModel):
     db_name:str
     table_name:str
 
-class Event(BaseModel):
+class Event():
     type: EventType
     name: str
     version: str = '0'
     id: str
-    meta: Meta
+    table: Table
     data: dict = None
     ctx: Context = None
 
+    def __init__(self, event_type:EventType,name:str,table:Table,data:dict,ctx:Context=None):
+        self.id = uuid.uuid1().hex
+        self.type = event_type
+        self.name = name
+        self.data = data
+        self.ctx = ctx
+        self.table = table
 
 
     @classmethod 
     def parse_binlog(cls,table:Table, event_type:EventType,raw:dict) -> Event:
+        debug(raw)
         values = raw['values']
         info = {
             'database': table.db_name,
             'table': table.name,
             'type': event_type.name
         }
-        events = []
         name = 'mysql://{database}/{table}/{type}'.format(**info)
-        
-        meta = Meta(db_name=table.db_name, table_name=table.name)
-        event = Event(id = uuid.uuid1().hex, type=event_type,name=name,data=values, meta=meta)
+        values = jsonity(values)
+        debug(values) 
+        event = Event(event_type=event_type,name=name,data=values, table=table)
         return event
 
-
+    def insert_ch(self,ch):
+        tpl = """ INSERT INTO {table_name}
+            ({columns})
+            VALUES
+        """
+        columns = [column.name for column in self.table.columns]
+        debug(columns)
+        sql = tpl.format(table_name="{db}.{table}".format(db=self.table.db_name, table=self.table.name),
+                   columns=",".join(columns))
+        debug(sql)
+        debug(self.data)
+        ch.execute(sql,[self.data])
 
 
 class Topic(BaseModel):

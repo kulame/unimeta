@@ -15,6 +15,7 @@ from databases import Database
 from loguru import logger
 from devtools import debug
 from unimeta.libs.liburl import parse_url
+from unimeta.libs.libformat import jsonity
 
 
 _fake = Faker(['zh_CN'])
@@ -181,6 +182,13 @@ class BooleanColumn(Column):
         else:
             return "UInt8"
 
+    @classmethod
+    def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> BooleanColumn:
+        column = BooleanColumn()
+        column.nullable = sqlcolumn.nullable
+        column.name = sqlcolumn.name
+        return column
+
 
 class DateTimeColumn(Column):
     pass
@@ -190,6 +198,13 @@ class DateTimeColumn(Column):
             return "Nullable(DateTime)"
         else:
             return "DateTime"
+
+    @classmethod
+    def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> DateTimeColumn:
+        column = DateTimeColumn()
+        column.nullable = sqlcolumn.nullable
+        column.name = sqlcolumn.name
+        return column
 
 
 class DateColumn(Column):
@@ -240,7 +255,10 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
         return DateColumn.read_from_sqlcolumn(sqlcolumn)
     elif ptype is Decimal:
         return DecimalColumn.read_from_sqlcolumn(sqlcolumn)
-    
+    elif ptype is datetime:
+        return DateTimeColumn.read_from_sqlcolumn(sqlcolumn)
+    else:
+        debug(sqlcolumn)
 
 class ClickhouseTableTemplate():
 
@@ -320,6 +338,7 @@ class Table:
 
     async def mock_insert(self,conn, hint):
         tpl = DDLTemplate.get_insert_template()
+        debug(self.columns)
         columns = [column.name for column in self.columns if column.autoincrement is False]
         data = {column.name:fake(column, hint) for column in self.columns if column.autoincrement is False}
         sql = tpl.format(table_name=self.name,
@@ -327,6 +346,7 @@ class Table:
                    values=",".join(map(lambda value: ":{value}".format(value=value),columns)))
 
         debug(sql)
+        data = jsonity(data)
         debug(data)
         r = await conn.execute(query=sql,values=data)
         debug(r)
