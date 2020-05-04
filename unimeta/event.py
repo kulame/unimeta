@@ -63,7 +63,6 @@ class Event():
 
     @classmethod 
     def parse_binlog(cls,table:Table, event_type:EventType,raw:dict) -> Event:
-        debug(raw)
         values = raw['values']
         info = {
             'database': table.db_name,
@@ -83,13 +82,12 @@ class Event():
             VALUES
         """
         columns = [column.name for column in self.table.columns]
-        debug(columns)
         sql = tpl.format(table_name="{db}.{table}".format(db=self.table.db_name, table=self.table.name),
                    columns=",".join(columns))
-        debug(sql)
-        debug(self.data)
-        ch.execute(sql,[self.data])
-
+        try:
+            ch.execute(sql,[self.data])
+        except:
+            logger.exception("what?")
 
 class Topic(BaseModel):
     name: str

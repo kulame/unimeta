@@ -274,8 +274,24 @@ class ClickhouseTableTemplate():
             ENGINE = VersionedCollapsingMergeTree(Sign, Version)
             PARTITION BY toYYYYMM({primary_date})
             ORDER BY ({primary_key})
+            PRIMARY KEY ({primary_key})
         """
-    
+
+    @classmethod
+    def getReplacingMergeTree(cls) -> str:
+        return """
+            CREATE TABLE IF NOT EXISTS {db_name}.{table_name}
+            (
+                 Sign Int8,
+                 Version UInt8,
+                {create_column}
+            )
+            ENGINE = ReplacingMergeTree()
+            PARTITION BY toYYYYMM({primary_date})
+            ORDER BY ({primary_key})
+            PRIMARY KEY ({primary_key})
+        """
+
     @classmethod
     def getDefault(cls) -> str:
         return """
@@ -292,6 +308,8 @@ class ClickhouseTableTemplate():
     def get(cls,engine:CHTableEngine)->str:
         if engine is CHTableEngine.VersionedCollapsingMergeTree:
             return cls.getVersionedCollapsingMergeTree()
+        elif engine is CHTableEngine.ReplacingMergeTree:
+            return cls.getReplacingMergeTree()
         else:
             return cls.getDefault()
 
@@ -363,7 +381,7 @@ class Table:
             logger.error("no primary date column")
             return None
         else:
-            tpl = ClickhouseTableTemplate.get(CHTableEngine.VersionedCollapsingMergeTree)
+            tpl = ClickhouseTableTemplate.get(CHTableEngine.ReplacingMergeTree)
             ddl = tpl.format(db_name=self.db_name,
                              table_name=self.name,
                              create_column=",".join(ch_columns),
