@@ -71,9 +71,10 @@ class Event():
             'type': event_type.name
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
+        data = table.get_default()
         values = jsonity(values)
-        debug(values) 
-        event = Event(event_type=event_type,name=name,data=values, table=table)
+        data.update(values)
+        event = Event(event_type=event_type,name=name,data=data, table=table)
         return event
 
     def insert_ch(self,ch):

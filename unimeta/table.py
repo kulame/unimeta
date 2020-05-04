@@ -383,3 +383,12 @@ class Table:
             key = "{db}/{table}".format(db=table.db_name,table=table.name)
             metatable[key] = table
         return metatable
+
+    def get_default(self):
+        default = {}
+        for column in self.columns:
+            if isinstance(column,DateTimeColumn):
+                default[column.name] = datetime.now()
+            else:
+                default[column.name] = None
+        return default
