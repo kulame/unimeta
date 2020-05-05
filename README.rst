@@ -15,7 +15,7 @@ Python 2.7/3.5+ and PyPy.
 
     $ pip install unimeta
 
-.. code-block:: Python
+.. code-block:: python3
     from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
     mysql_url = "mysql://root:111111@127.0.0.1:3306/hr"
     clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
