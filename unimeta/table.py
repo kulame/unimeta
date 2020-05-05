@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Dict
 from sqlalchemy.sql.schema import Table as SQLTable
 from sqlalchemy.sql.schema import Column as SQLColumn
 import sqlalchemy
 from devtools import debug
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 import json
@@ -207,6 +207,8 @@ class DateTimeColumn(Column):
         return column
 
 
+
+
 class DateColumn(Column):
     
     @classmethod
@@ -329,6 +331,7 @@ class Table:
     name:str
     primary_key:Column
     columns:List[Column]
+    meta:Dict[str,Column]
 
     @classmethod
     def read_from_sqltable(cls,sqltable:SQLTable, db_name:str) -> Table:
@@ -336,12 +339,16 @@ class Table:
         table.db_name = db_name
         table.name = sqltable.name
         columns:List[Column] = []
+        meta = {}
         for sqlcolumn in sqltable.columns:
             column = get_column_from_sql(sqlcolumn)
             columns.append(column)
+            meta[column.name] = column
         table.columns = columns
+        table.meta = meta
         for key in sqltable.primary_key:
             table.primary_key = get_column_from_sql(key)
+        
         return table
 
     def get_primary_date_column(self):
@@ -401,6 +408,32 @@ class Table:
             key = "{db}/{table}".format(db=table.db_name,table=table.name)
             metatable[key] = table
         return metatable
+
+    def normalize(self, data:dict) -> dict:
+        r = {}
+        for k, c in self.meta.items():
+            v = data.get(k)
+            
+            if isinstance(c,DateColumn):
+                if v is None:
+                    r[k] = date.min
+                elif isinstance(v,date):
+                    r[k] = v
+                else:
+                    r[k] = date.fromisoformat(v)
+            elif isinstance(c,DateTimeColumn):
+                if v is None:
+                    r[k] = datetime(2000,1,1)
+                elif isinstance(v, datetime):
+                    r[k] = v
+                else:
+                    r[k] = datetime.fromisoformat(v)
+            elif isinstance(c, DecimalColumn):
+                r[k] = str(v)
+            else:
+                r[k] = v
+        return r
+
 
     def get_default(self):
         default = {}

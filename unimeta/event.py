@@ -70,9 +70,7 @@ class Event():
             'type': event_type.name
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
-        data = table.get_default()
-        values = jsonity(values)
-        data.update(values)
+        data = table.normalize(values)
         event = Event(event_type=event_type,name=name,data=data, table=table)
         return event
 
@@ -88,6 +86,7 @@ class Event():
             ch.execute(sql,[self.data])
         except:
             logger.exception("what?")
+            raise
 
 class Topic(BaseModel):
     name: str
