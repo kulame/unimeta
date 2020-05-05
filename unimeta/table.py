@@ -85,6 +85,7 @@ class Column:
     name:str
     nullable:bool
     autoincrement:bool = False
+    primary_key:bool = False
 
     def to_ch_type(self) -> str:
         pass
@@ -325,7 +326,14 @@ class DDLTemplate():
             VALUES
             ({values});
         """
-        
+    
+    @classmethod
+    def get_update_template(cls) -> str:
+        return """
+            UPDATE {table_name}
+            set {dml}
+            where {primary_key}={value}
+        """
 class Table:
     db_name:str
     name:str
@@ -342,16 +350,18 @@ class Table:
         meta = {}
         for sqlcolumn in sqltable.columns:
             column = get_column_from_sql(sqlcolumn)
-            columns.append(column)
             meta[column.name] = column
-        table.columns = columns
+        table.columns = meta.values()
         table.meta = meta
+        debug(meta)
         for key in sqltable.primary_key:
             table.primary_key = get_column_from_sql(key)
+            if key.name in meta.keys():
+                meta[key.name].primary_key = True
         
         return table
 
-    def get_primary_date_column(self):
+    def get_primary_date_column(self) -> Column:
         for column in self.columns:
             if column.nullable:
                 continue
@@ -361,8 +371,8 @@ class Table:
                 return column
         return None
 
-    async def mock_insert(self,conn, hint):
-        tpl = DDLTemplate.get_insert_template()
+    async def mock_insert(self,conn, hint) -> int: 
+        tpl = DDLTemplate.get_insert_template() 
         debug(self.columns)
         columns = [column.name for column in self.columns if column.autoincrement is False]
         data = {column.name:fake(column, hint) for column in self.columns if column.autoincrement is False}
@@ -374,9 +384,30 @@ class Table:
         data = jsonity(data)
         debug(data)
         r = await conn.execute(query=sql,values=data)
-        debug(r)
+        return r
 
-                
+    async def mock_update(self, conn, hint, primary_id) ->  None:
+        tpl = DDLTemplate.get_update_template()
+        columns = [column.name for column in self.columns if column.autoincrement is False]
+        data = {column.name:fake(column, hint) for column in self.columns if column.primary_key is False}
+        items = []
+        for k, v in data.items():
+            column = self.meta[k]
+            if isinstance(column,StringColumn) or \
+                isinstance(column, DateColumn) or \
+                    isinstance(column, DateTimeColumn):
+                items.append("{k}='{v}'".format(k=k,v=v))
+            else:
+                items.append("{k}={v}".format(k=k, v=v))
+        
+        sql = tpl.format(table_name=self.name,
+            dml = ",".join(items),
+            primary_key = self.primary_key.name,
+            value = primary_id
+        )    
+        debug(sql)
+        r = await conn.execute(sql)
+        return r        
 
     def get_ch_ddl(self) -> str:
         ch_columns = []

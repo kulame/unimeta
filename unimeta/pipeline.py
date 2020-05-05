@@ -50,10 +50,9 @@ class MysqlSource(Source):
                     debug(event)
                 elif isinstance(binlogevent, UpdateRowsEvent):
                     event = Event.parse_binlog(table,EventType.UPDATE,row)
-                    debug(event)
+                    event.insert_ch(self.ch)
                 elif isinstance(binlogevent, WriteRowsEvent):
                     event = Event.parse_binlog(table,EventType.INSERT,row)
-                    debug(event)
                     event.insert_ch(self.ch)
 
     def close(self):

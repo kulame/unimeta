@@ -40,8 +40,9 @@ async def fake() -> None:
     async with Database(database_url) as database:
         while True:
             try:
-                await table.mock_insert(database, hint)
+                primary_id = await table.mock_insert(database, hint)
                 time.sleep(1)
+                await table.mock_update(database, hint, primary_id)
             except pymysql.err.DataError:
                 logger.exception("what")
 

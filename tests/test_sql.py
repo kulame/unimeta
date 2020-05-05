@@ -57,7 +57,9 @@ async def test_mock() -> None:
     }
     
     async with Database(database_url) as database:
-        await table.mock_insert(database, hint)
+        id = await table.mock_insert(database, hint)
+        update = await table.mock_update(database, hint, id)
+        debug(update)
 
 
 @async_adapter

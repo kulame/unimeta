@@ -63,7 +63,10 @@ class Event():
 
     @classmethod 
     def parse_binlog(cls,table:Table, event_type:EventType,raw:dict) -> Event:
-        values = raw['values']
+        if event_type == EventType.INSERT:
+            values = raw['values']
+        elif event_type == EventType.UPDATE:
+            values = raw['after_values']
         info = {
             'database': table.db_name,
             'table': table.name,
