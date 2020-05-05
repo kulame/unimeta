@@ -10,19 +10,18 @@ Python 2.7/3.5+ and PyPy.
 
 ```shell
 
-    $ pip install unimeta
+$ pip install unimeta
 ```
 
 ```pycon
-    from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
-    mysql_url = "mysql://root:111111@127.0.0.1:3306/hr"
-    clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
-    
-    source = MysqlSource(database_url = mysql_url)
-    sink = ClickHouseSink(database_url = clickhouse_url)
-    pipe = Pipeline()
-    pipe.sync_tables()
-    pipe.sync()
+>>> from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
+>>> mysql_url = "mysql://root:111111@127.0.0.1:3306/hr"
+>>> clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
+>>> source = MysqlSource(database_url = mysql_url)
+>>> sink = ClickHouseSink(database_url = clickhouse_url)
+>>> pipe = Pipeline()
+>>> pipe.sync_tables()
+>>> pipe.sync()
 ```
 
 ## License
