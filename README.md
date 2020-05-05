@@ -1,21 +1,19 @@
-unimeta
-=======
+## unimeta
 
-.. contents:: **Table of Contents**
-    :backlinks: none
+realtime database sync tools
 
-Installation
-------------
+## Installation
 
 unimeta is distributed on `PyPI <https://pypi.org>`_ as a universal
 wheel and is available on Linux/macOS and Windows and supports
 Python 2.7/3.5+ and PyPy.
 
-.. code-block:: bash
+```shell
 
     $ pip install unimeta
+```
 
-.. code-block:: python3
+```pycon
     from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
     mysql_url = "mysql://root:111111@127.0.0.1:3306/hr"
     clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
@@ -25,9 +23,9 @@ Python 2.7/3.5+ and PyPy.
     pipe = Pipeline()
     pipe.sync_tables()
     pipe.sync()
+```
 
-License
--------
+## License
 
 unimeta is distributed under the terms of both
 

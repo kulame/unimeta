@@ -15,7 +15,7 @@ with open('unimeta/__init__.py', 'r') as f:
     else:
         version = '0.0.1'
 
-with open('README.rst', 'r', encoding='utf-8') as f:
+with open('README.md', 'r', encoding='utf-8') as f:
     readme = f.read()
 
 REQUIRES = []
@@ -25,11 +25,12 @@ kwargs = {
     'version': version,
     'description': '',
     'long_description': readme,
+    'long_description_content_type':"text/markdown",
     'author': 'kula',
-    'author_email': 'kulasama@foxmail.com',
+    'author_email': 'kula@live.com',
     'maintainer': 'kula',
-    'maintainer_email': 'kulasama@foxmail.com',
-    'url': 'https://github.com/_/unimeta',
+    'maintainer_email': 'kula@live.com',
+    'url': 'https://github.com/kulame/unimeta',
     'license': 'MIT/Apache-2.0',
     'classifiers': [
         'Development Status :: 4 - Beta',
@@ -38,11 +39,9 @@ kwargs = {
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
     ],
     'install_requires': REQUIRES,
     'tests_require': ['coverage', 'pytest'],
