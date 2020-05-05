@@ -5,6 +5,7 @@ from pymysqlreplication.row_event import (
     UpdateRowsEvent,
     WriteRowsEvent,
 )
+from typing import Dict
 from devtools import debug
 from unimeta.event import Event, EventType
 from unimeta.table import Table
@@ -22,7 +23,9 @@ class Source():
 
 
 class MysqlSource(Source):
-    
+    metatable:Dict[str,Table]
+    stream: BinLogStreamReader
+
     def __init__(self,database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
@@ -33,12 +36,7 @@ class MysqlSource(Source):
                                          server_id=100,
                                          blocking=True,
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
-        tables = self.metatable.values()
-        debug(tables)
   
-        self.ch = Client("127.0.0.1")
-        for table in tables:
-            self.ch.execute(table.get_ch_ddl())
 
     def subscribe(self):
         for binlogevent in self.stream:
@@ -47,13 +45,14 @@ class MysqlSource(Source):
             for row in binlogevent.rows:
                 if isinstance(binlogevent, DeleteRowsEvent):
                     event = Event.parse_binlog(table,EventType.DELETE,row)
-                    debug(event)
                 elif isinstance(binlogevent, UpdateRowsEvent):
                     event = Event.parse_binlog(table,EventType.UPDATE,row)
-                    event.insert_ch(self.ch)
                 elif isinstance(binlogevent, WriteRowsEvent):
                     event = Event.parse_binlog(table,EventType.INSERT,row)
-                    event.insert_ch(self.ch)
+                else:
+                    raise Exception("event type not support")
+                debug(event)
+                yield event
 
     def close(self):
         self.stream.close()
@@ -69,7 +68,36 @@ class MysqlSink(Sink):
 
 
 class ClickHouseSink(Sink):
-    pass
+    
+    def __init__(self, database_url):
+        Source.__init__(self)
+        settings = parse_url(database_url)
+        print(settings)
+        self.ch = Client(host=settings['host'],
+                         port=settings['port'],
+                         database=settings['name'])
+    
+    def execute(self, query):
+        return self.ch.execute(query)
+    
+    def publish(self, event):
+        return event.insert_ch(self.ch)
 
 class Pipeline():
-    pass
+    sink:Sink
+    source:Source
+    
+    def __init__(self,source, sink):
+        self.source = source
+        self.sink = sink
+
+    def sync_tables(self):
+        tables = self.source.metatable.values()
+        for table in tables:
+            self.sink.execute(table.get_ch_ddl())
+    
+    def sync(self):
+        for event in self.source.subscribe():
+            self.sink.publish(event)
+
+
