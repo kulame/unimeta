@@ -19,7 +19,7 @@ $ pip install unimeta
 >>> clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
 >>> source = MysqlSource(database_url = mysql_url)
 >>> sink = ClickHouseSink(database_url = clickhouse_url)
->>> pipe = Pipeline()
+>>> pipe = Pipeline(source, sink)
 >>> pipe.sync_tables()
 >>> pipe.sync()
 ```

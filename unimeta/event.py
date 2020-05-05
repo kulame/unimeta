@@ -88,6 +88,7 @@ class Event():
         try:
             ch.execute(sql,[self.data])
         except:
+            debug(self.data)
             logger.exception("what?")
             raise
 

@@ -16,21 +16,16 @@ from unimeta.libs.liburl import parse_url
 from loguru import logger
 import pymysql
 import time
+import random
 
 config = configparser.ConfigParser()
 config.read(".env")
   
 async def fake() -> None:
-    meta = sqlalchemy.MetaData()
     database_url = config['mysql'].get("url")
-    debug(database_url)
 
-    engine = sqlalchemy.create_engine(database_url)
-    meta.reflect(bind=engine)
-    sqltable = meta.tables['employees']
-    debug(sqltable)
-    table = Table.read_from_sqltable(sqltable,"employee")
-    debug(table)
+    meta = Table.metadata(database_url)
+    debug(meta)
     hint = {
         "email":"ascii_free_email",
         "phone_number":"phone_number",
@@ -40,8 +35,11 @@ async def fake() -> None:
     async with Database(database_url) as database:
         while True:
             try:
+                keys = list(meta.keys())
+                key = random.choice(keys)
+                debug(key)
+                table = meta[key] 
                 primary_id = await table.mock_insert(database, hint)
-                time.sleep(1)
                 await table.mock_update(database, hint, primary_id)
             except pymysql.err.DataError:
                 logger.exception("what")
