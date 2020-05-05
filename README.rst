@@ -15,6 +15,14 @@ Python 2.7/3.5+ and PyPy.
 
     $ pip install unimeta
 
+.. code-block:: Python
+    from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
+    source = MysqlSource()
+    sink = ClickHouseSink()
+    pipe = Pipeline(source, sink)
+    pipe.sync_tables()
+    pipe.sync()
+
 License
 -------
 
