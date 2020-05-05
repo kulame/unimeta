@@ -17,9 +17,12 @@ Python 2.7/3.5+ and PyPy.
 
 .. code-block:: Python
     from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
-    source = MysqlSource()
-    sink = ClickHouseSink()
-    pipe = Pipeline(source, sink)
+    mysql_url = "mysql://root:111111@127.0.0.1:3306/hr"
+    clickhouse_url = "clickhouse://127.0.0.1:9000/hr"
+    
+    source = MysqlSource(database_url = mysql_url)
+    sink = ClickHouseSink(database_url = clickhouse_url)
+    pipe = Pipeline()
     pipe.sync_tables()
     pipe.sync()
 
