@@ -85,6 +85,13 @@ class ClickHouseSink(Sink):
     def publish(self, event):
         return event.insert_ch(self.ch)
 
+class KafkaSink(Sink):
+
+    def __init__(self, database_url):
+        Source.__init__(self)
+        settings = parse_url(database_url)
+        print(database_url)
+
 class Pipeline():
     sink:Sink
     source:Source

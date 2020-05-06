@@ -8,8 +8,6 @@ import functools
 import asyncio
 from devtools import debug
 from unimeta.table import Table
-from aiochclient import ChClient
-from aiohttp import ClientSession
 from loguru import logger
 import configparser
 from unimeta.libs.liburl import parse_url
@@ -68,8 +66,6 @@ async def test_meta() -> None:
     database_url = 'mysql://root:111111@127.0.0.1:3306/hr'
     engine = sqlalchemy.create_engine(database_url)
     meta.reflect(bind=engine)
-    async with ClientSession() as s:
-        chclient = ChClient(s)
-        for sql_table_name, sql_table in meta.tables.items():
-            table = Table.read_from_sqltable(sql_table,"employee")
-            ddl = table.get_ch_ddl()
+    for sql_table_name, sql_table in meta.tables.items():
+        table = Table.read_from_sqltable(sql_table,"employee")
+        ddl = table.get_ch_ddl()
