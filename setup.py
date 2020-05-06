@@ -18,7 +18,10 @@ with open('unimeta/__init__.py', 'r') as f:
 with open('README.md', 'r', encoding='utf-8') as f:
     readme = f.read()
 
-REQUIRES = []
+REQUIRES = [
+    "devtools",
+    "mysql-replication"
+]
 
 kwargs = {
     'name': 'unimeta',
