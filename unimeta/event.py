@@ -102,6 +102,30 @@ class Event():
             'ctx': jsonity(self.ctx) if self.ctx else None
         })
 
+    def avro(self) -> str:
+        """
+        {
+            "namespace": "example.avro",
+            "type": "record",
+            "name": "User",
+            "fields": [
+                {"name": "name", "type": "string"},
+                {"name": "favorite_number",  "type": ["int", "null"]},
+                {"name": "favorite_color", "type": ["string", "null"]}
+            ]
+        }
+        """
+        _avro = {
+            "namespace": "gm.event.avro",
+            "type": "record",
+        }
+        _avro['name'] = self.name
+        fields = []
+        for column in self.table.columns:
+            field  = {
+                "name": column.name,
+                "type": column.avro_types()
+            }         
     
 
 class Topic(BaseModel):

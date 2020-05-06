@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict
+from typing import List, Dict,Optional
 from sqlalchemy.sql.schema import Table as SQLTable
 from sqlalchemy.sql.schema import Column as SQLColumn
 import sqlalchemy
@@ -97,6 +97,9 @@ class Column:
         column.name = sqlcolumn.name
         return column
 
+    def avro_types(cls) -> Optional[str,List[str]]:
+        pass
+
 
 class StringColumn(Column):
     length:int
@@ -115,6 +118,15 @@ class StringColumn(Column):
         else:
             return "String"
 
+    
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["string", "null"]
+        else:
+            return "string"
+
+
+
 
 class TextColumn(Column):
 
@@ -123,6 +135,12 @@ class TextColumn(Column):
             return "Nullable(String)"
         else:
             return "String"
+
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["string", "null"]
+        else:
+            return "string"
 
 
 class IntegerColumn(Column):
@@ -142,6 +160,11 @@ class IntegerColumn(Column):
         else:
             return "UInt64"
 
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["int", "null"]
+        else:
+            return "int"
 
 
 class DecimalColumn(Column):
@@ -163,6 +186,12 @@ class DecimalColumn(Column):
         else:
             return "String"
 
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["bytes", "null"]
+        else:
+            return "bytes"
+
 
 class FloatColumn(Column):
     pass
@@ -180,7 +209,11 @@ class FloatColumn(Column):
         column.name = sqlcolumn.name
         return column
 
-
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["float", "null"]
+        else:
+            return "float"
 
 class BooleanColumn(Column):
     pass
@@ -197,6 +230,12 @@ class BooleanColumn(Column):
         column.nullable = sqlcolumn.nullable
         column.name = sqlcolumn.name
         return column
+
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["boolean", "null"]
+        else:
+            return "boolean"
 
 
 class DateTimeColumn(Column):
@@ -215,6 +254,11 @@ class DateTimeColumn(Column):
         column.name = sqlcolumn.name
         return column
 
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["int", "null"]
+        else:
+            return "int"
 
 
 
@@ -233,6 +277,14 @@ class DateColumn(Column):
         else:
             return "Date"
 
+    
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["int", "null"]
+        else:
+            return "int"
+
+
 
 class TimeColumn(Column):
     
@@ -241,6 +293,12 @@ class TimeColumn(Column):
             return "Nullable(String)"
         else:
             return "String"
+
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["int", "null"]
+        else:
+            return "int"
 
 
 class JSONColumn(Column):
@@ -251,8 +309,14 @@ class JSONColumn(Column):
         else:
             return "String"
 
-    def fake(self) -> str:
-        return json.dumps(_fake.pydict())
+
+
+    def avro_types(self) -> Optional[str,List[str]]:
+        if self.nullable:
+            return ["string", "null"]
+        else:
+            return "string"
+
 
 
 
