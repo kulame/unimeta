@@ -42,6 +42,8 @@ class MysqlSource(Source):
         for binlogevent in self.stream:
             key = "{db}/{table}".format(db=binlogevent.schema, table=binlogevent.table)
             table = self.metatable.get(key)
+            if table is None:
+                continue
             for row in binlogevent.rows:
                 if isinstance(binlogevent, DeleteRowsEvent):
                     event = Event.parse_binlog(table,EventType.DELETE,row)
@@ -94,7 +96,11 @@ class Pipeline():
     def sync_tables(self):
         tables = self.source.metatable.values()
         for table in tables:
-            self.sink.execute(table.get_ch_ddl())
+            ddl = table.get_ch_ddl()
+            debug(ddl)
+            print(ddl)
+            if ddl is not None:
+                self.sink.execute(ddl)
     
     def sync(self):
         for event in self.source.subscribe():

@@ -295,8 +295,6 @@ class ClickhouseTableTemplate():
         return """
             CREATE TABLE IF NOT EXISTS {db_name}.{table_name}
             (
-                 Sign Int8,
-                 Version UInt8,
                 {create_column}
             )
             ENGINE = ReplacingMergeTree()
@@ -363,6 +361,7 @@ class Table:
             meta[column.name] = column
         table.columns = meta.values()
         table.meta = meta
+        debug(table.name)
         debug(meta)
         for key in sqltable.primary_key:
             table.primary_key = get_column_from_sql(key)
