@@ -22,7 +22,6 @@ REQUIRES = [
     "devtools",
     "mysql-replication",
     "pydantic",
-    "aiokafka",
     "loguru",
     "sqlalchemy",
     "faker",

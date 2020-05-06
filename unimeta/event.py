@@ -5,7 +5,6 @@ from asyncio import BaseEventLoop
 from enum import Enum, auto
 from typing import List, Optional
 import uuid
-from aiokafka import AIOKafkaProducer
 from loguru import logger
 import inspect
 from devtools import debug
