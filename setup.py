@@ -20,7 +20,15 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 REQUIRES = [
     "devtools",
-    "mysql-replication"
+    "mysql-replication",
+    "pydantic",
+    "aiokafka",
+    "loguru",
+    "sqlalchemy",
+    "faker",
+    "databases",
+    "clickhouse_driver",
+    "mysqlclient"
 ]
 
 kwargs = {
