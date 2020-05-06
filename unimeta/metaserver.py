@@ -2,14 +2,14 @@ from fastapi import FastAPI
 import databases
 import orm
 import sqlalchemy
+from unimeta.model import MetaEventReq
+from devtools import debug
+from databases import Database
+import os
 
-from pydantic import BaseModel
-
-
-class MetaEventReq(BaseModel):
-    name: str
-    meta: str 
-    creator: str
+database_url = os.getenv("UNIMETA_DATABASE_URL", None)
+database = Database(database_url)
+await database.connect()
 
 
 metadata = sqlalchemy.MetaData()
@@ -29,7 +29,7 @@ app = FastAPI()
 
 
 
-@app.post("/metatable")
+@app.post("/metaevent")
 async def create_event_meta(req:MetaEventReq) -> dict:
     """
     @api {post} /metatable/ Create Meta Information
@@ -41,9 +41,8 @@ async def create_event_meta(req:MetaEventReq) -> dict:
     @apiParam {String} creator meta creator.
     @apiSuccess {int} status 创建状态.
 """
+    debug(req)
+    query = "SELECT * FROM notes WHERE id = :id"
+    result = await database.fetch_one(query=query, values={"id": 1})
+
     return {"Hello": "World"}
-
-
-@app.get("/metas/{event_name}")
-def read_item(event_name: str):
-    return {"item_id": item_id, "q": q}

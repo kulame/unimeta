@@ -13,7 +13,7 @@ from clickhouse_driver import Client
 
 import asyncio
 import json
-from confluent_kafka import Producer
+from confluent_kafka import Producer as KafkaProducer
 from loguru import logger
 
 class Sink():
@@ -59,6 +59,7 @@ class MysqlSource(Source):
                 else:
                     raise Exception("event type not support")
                 debug(event)
+                debug(event.avro())
                 yield event
 
     def close(self):
@@ -95,7 +96,7 @@ class KafkaSink(Sink):
     def __init__(self, database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
-        self.producer = Producer({
+        self.producer = KafkaProducer({
             'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port'])
         })
         self.topic = settings['name']
@@ -106,17 +107,29 @@ class KafkaSink(Sink):
 
     def publish(self, event):
         data = event.json()
-        debug(data)
         self.producer.produce(self.topic, data.encode('utf-8'), callback=delivery_report)
 
+
+
+class Producer():
+    name:str
+    metaserver:str
+
+    def __init__(self,name,metaserver):
+        self.name = name
+        self.metaserver = metaserver
 
 class Pipeline():
     sink:Sink
     source:Source
+    meta:dict
+    metaserver:str
     
-    def __init__(self,source, sink):
+    def __init__(self,source:Source, sink:Sink, producer:Producer = None):
         self.source = source
         self.sink = sink
+        self.producer = producer
+        self.meta = {}
 
     def sync_tables(self):
         tables = self.source.metatable.values()
@@ -127,6 +140,9 @@ class Pipeline():
     
     def sync(self):
         for event in self.source.subscribe():
+            if event.name not in self.meta:
+                #if self.metaserver is not None:
+                event.reg_meta(self.producer)
             self.sink.publish(event)
 
 

@@ -10,9 +10,10 @@ import inspect
 from devtools import debug
 import pydantic
 import json
+import requests
 from unimeta.table import Table, DDLTemplate
 from unimeta.libs.libformat import jsonity
-
+from unimeta.model import MetaEventReq
 
 class EventType(Enum):
     INSERT = auto()  
@@ -69,7 +70,7 @@ class Event():
         info = {
             'database': table.db_name,
             'table': table.name,
-            'type': event_type.name
+            'type': event_type.name.lower()
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
@@ -126,7 +127,20 @@ class Event():
                 "name": column.name,
                 "type": column.avro_types()
             }         
-    
+            fields.append(field)
+        _avro['fields'] = fields
+        return json.dumps(_avro)
+
+    def reg_meta(self, producer):
+        req = MetaEventReq(
+            name = self.name,
+            meta = self.avro(),
+            creator = producer.name
+        )
+        url = "{host}/metaevent".format(host=producer.metaserver)
+        r = requests.post(url, data=req.json())
+        debug(r)
+        
 
 class Topic(BaseModel):
     name: str
