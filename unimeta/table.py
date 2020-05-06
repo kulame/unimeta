@@ -425,7 +425,7 @@ class Table:
             ch_columns.append(line)
         primary_date_column = self.get_primary_date_column()
         if primary_date_column is None:
-            logger.error("no primary date column")
+            logger.error("{table_name} no primary date column".format(table_name=self.name))
             return None
         else:
             tpl = ClickhouseTableTemplate.get(CHTableEngine.ReplacingMergeTree)
