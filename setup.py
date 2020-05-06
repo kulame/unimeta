@@ -28,7 +28,8 @@ REQUIRES = [
     "faker",
     "databases",
     "clickhouse_driver",
-    "mysqlclient"
+    "mysqlclient",
+    "confluent-kafka-1.4.1"
 ]
 
 kwargs = {

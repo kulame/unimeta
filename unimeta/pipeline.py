@@ -11,6 +11,11 @@ from unimeta.event import Event, EventType
 from unimeta.table import Table
 from clickhouse_driver import Client
 
+import asyncio
+import json
+from confluent_kafka import Producer
+from loguru import logger
+
 class Sink():
     
     def publish(self):
@@ -59,14 +64,6 @@ class MysqlSource(Source):
     def close(self):
         self.stream.close()
 
-class MysqlSink(Sink):
-
-    def __init__(self,database_url):
-        Sink.__init__(self)
-        self.database = Database(database_url)
-    
-    def generate_fake_data(self,sql,data):
-        self.database.execute(query=sql,values=data)
 
 
 class ClickHouseSink(Sink):
@@ -85,12 +82,33 @@ class ClickHouseSink(Sink):
     def publish(self, event):
         return event.insert_ch(self.ch)
 
+
+def delivery_report(err, msg):
+    if err is not None:
+        logger.error('Message delivery failed: {}'.format(err))
+    else:
+        logger.warning('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+
+
 class KafkaSink(Sink):
 
     def __init__(self, database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
-        print(database_url)
+        self.producer = Producer({
+            'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port'])
+        })
+        self.topic = settings['name']
+        debug(self.producer)
+
+    def execute(self, query):
+        pass
+
+    def publish(self, event):
+        data = event.json()
+        debug(data)
+        self.producer.produce(self.topic, data.encode('utf-8'), callback=delivery_report)
+
 
 class Pipeline():
     sink:Sink
@@ -104,8 +122,6 @@ class Pipeline():
         tables = self.source.metatable.values()
         for table in tables:
             ddl = table.get_ch_ddl()
-            debug(ddl)
-            print(ddl)
             if ddl is not None:
                 self.sink.execute(ddl)
     

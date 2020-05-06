@@ -8,12 +8,9 @@ import functools
 import asyncio
 from devtools import debug
 from unimeta.table import Table
-from aiochclient import ChClient
-from aiohttp import ClientSession
 from loguru import logger
 import configparser
 from unimeta.libs.liburl import parse_url
-from loguru import logger
 import pymysql
 import time
 import random

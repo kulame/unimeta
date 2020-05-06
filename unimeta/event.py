@@ -74,6 +74,7 @@ class Event():
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
+        debug(data)
         event = Event(event_type=event_type,name=name,data=data, table=table)
         return event
 
@@ -91,6 +92,18 @@ class Event():
             debug(self.data)
             logger.exception("what?")
             raise
+
+    def json(self) -> str:
+        return json.dumps({
+            'type': self.type.value,
+            'name': self.name,
+            'version': self.version,
+            'id': self.id,
+            'data': jsonity(self.data),
+            'ctx': jsonity(self.ctx) if self.ctx else None
+        })
+
+    
 
 class Topic(BaseModel):
     name: str

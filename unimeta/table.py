@@ -361,8 +361,6 @@ class Table:
             meta[column.name] = column
         table.columns = meta.values()
         table.meta = meta
-        debug(table.name)
-        debug(meta)
         for key in sqltable.primary_key:
             table.primary_key = get_column_from_sql(key)
             if key.name in meta.keys():
