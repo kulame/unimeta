@@ -173,6 +173,14 @@ class FloatColumn(Column):
         else:
             return "Float32"
 
+    @classmethod
+    def read_from_sqlcolumn(cls,sqlcolumn: SQLColumn) -> FloatColumn:
+        column = FloatColumn()
+        column.nullable = sqlcolumn.nullable
+        column.name = sqlcolumn.name
+        return column
+
+
 
 class BooleanColumn(Column):
     pass
@@ -260,6 +268,8 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
         return DecimalColumn.read_from_sqlcolumn(sqlcolumn)
     elif ptype is datetime:
         return DateTimeColumn.read_from_sqlcolumn(sqlcolumn)
+    elif ptype is float:
+        return FloatColumn.read_from_sqlcolumn(sqlcolumn)
     else:
         debug(sqlcolumn)
 
