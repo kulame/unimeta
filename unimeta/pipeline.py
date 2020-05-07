@@ -59,6 +59,8 @@ class MysqlSource(Source):
                 else:
                     raise Exception("event type not support")
                 debug(event)
+                if event is None:
+                    continue
                 yield event
 
     def close(self):

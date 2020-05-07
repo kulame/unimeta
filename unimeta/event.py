@@ -66,6 +66,9 @@ class Event():
             values = raw['values']
         elif event_type == EventType.UPDATE:
             values = raw['after_values']
+        elif event_type == EventType.DELETE:
+            logger.warning("delete event")
+            return  None
         info = {
             'database': table.db_name,
             'table': table.name,
@@ -73,7 +76,6 @@ class Event():
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
-        debug(data)
         event = Event(event_type=event_type,name=name,data=data, table=table)
         return event
 
