@@ -28,7 +28,7 @@ REQUIRES = [
     "databases",
     "clickhouse_driver",
     "mysqlclient",
-    "confluent-kafka"
+    "confluent-kafka==1.3.0"
 ]
 
 kwargs = {

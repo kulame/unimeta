@@ -90,9 +90,8 @@ class Event():
         try:
             ch.execute(sql,[self.data])
         except:
-            debug(self.data)
+            logger.error(self.data)
             logger.exception("what?")
-            raise
 
     def json(self) -> str:
         return json.dumps({
