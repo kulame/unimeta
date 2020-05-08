@@ -72,7 +72,7 @@ class Event():
         info = {
             'database': table.db_name,
             'table': table.name,
-            'type': event_type.name
+            'type': event_type.name.lower()
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
@@ -103,6 +103,13 @@ class Event():
             'ctx': jsonity(self.ctx) if self.ctx else None
         })
 
+    def get_primary_key(self):
+        k = self.table.primary_key.name
+        return self.data[k]
+
+
+    def __repr__(self) -> str:
+        return "{name}/{id}".format(name=self.name,id=self.get_primary_key())
     
 
 class Topic(BaseModel):
