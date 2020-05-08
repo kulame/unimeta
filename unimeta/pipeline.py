@@ -13,6 +13,7 @@ from clickhouse_driver import Client
 
 import asyncio
 import json
+import random
 from confluent_kafka import Producer
 from loguru import logger
 
@@ -34,7 +35,9 @@ class MysqlSource(Source):
     metatable:Dict[str,Table]
     stream: BinLogStreamReader
 
-    def __init__(self,database_url):
+    def __init__(self,database_url,server_id:int=None):
+        if server_id is None:
+            server_id = random.randint(1,1000)
         Source.__init__(self)
         settings = parse_url(database_url)
         settings['db'] = settings['name']
@@ -128,10 +131,21 @@ class Pipeline():
     def sync_tables(self):
         tables = self.source.metatable.values()
         for table in tables:
+            print(table.name)
             ddl = table.get_ch_ddl()
             if ddl is not None:
                 self.sink.execute(ddl)
-    
+
+    def rebuild_table(self, table):
+        source_tables = self.source.metatable.values()
+        for item in source_tables:
+            if table == item.name:
+                delete_stmt = "drop table {db}.{table}".format(db=item.db_name,table=table)
+                create_stmt = item.get_ch_ddl()
+                self.sink.execute(delete_stmt)
+                self.sink.execute(create_stmt)
+
+
     def sync(self):
         for event in self.source.subscribe():
             self.sink.publish(event)

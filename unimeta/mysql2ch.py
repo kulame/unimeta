@@ -12,8 +12,8 @@ def sync() -> None:
     source = MysqlSource(database_url=mysql_url)
     sink = KafkaSink(database_url = kafka_url)
     pipe = Pipeline(source, sink)
-    pipe.sync_tables()
-    pipe.sync()
+    pipe.rebuild_table('employees')
+    #pipe.sync()
 
 if __name__ == "__main__":
     sync()
