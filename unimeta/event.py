@@ -67,6 +67,9 @@ class Event():
             values = raw['values']
         elif event_type == EventType.UPDATE:
             values = raw['after_values']
+        elif event_type == EventType.DELETE:
+            logger.warning("delete event")
+            return  None
         info = {
             'database': table.db_name,
             'table': table.name,
@@ -74,7 +77,6 @@ class Event():
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
-        debug(data)
         event = Event(event_type=event_type,name=name,data=data, table=table)
         return event
 
@@ -89,9 +91,8 @@ class Event():
         try:
             ch.execute(sql,[self.data])
         except:
-            debug(self.data)
+            logger.error(self.data)
             logger.exception("what?")
-            raise
 
     def json(self) -> str:
         return json.dumps({
@@ -103,6 +104,7 @@ class Event():
             'ctx': jsonity(self.ctx) if self.ctx else None
         })
 
+<<<<<<< HEAD
     def avro(self) -> str:
         """
         {
@@ -141,6 +143,16 @@ class Event():
         r = requests.post(url, data=req.json())
         debug(r)
         
+=======
+    def get_primary_key(self):
+        k = self.table.primary_key.name
+        return self.data[k]
+
+
+    def __repr__(self) -> str:
+        return "{name}/{id}".format(name=self.name,id=self.get_primary_key())
+    
+>>>>>>> master
 
 class Topic(BaseModel):
     name: str

@@ -22,7 +22,10 @@ class Sink():
         pass
 
 class Source():
-    
+
+    def scan(self):
+        pass
+
     def subscribe(self):
         pass
 
@@ -58,8 +61,9 @@ class MysqlSource(Source):
                     event = Event.parse_binlog(table,EventType.INSERT,row)
                 else:
                     raise Exception("event type not support")
-                debug(event)
-                debug(event.avro())
+                logger.info(event)
+                if event is None:
+                    continue
                 yield event
 
     def close(self):
@@ -96,8 +100,10 @@ class KafkaSink(Sink):
     def __init__(self, database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
-        self.producer = KafkaProducer({
-            'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port'])
+        self.producer = Producer({
+            'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port']),
+            'queue.buffering.max.messages': 10000000,
+            'batch.num.messages': 10
         })
         self.topic = settings['name']
         debug(self.producer)
@@ -107,6 +113,7 @@ class KafkaSink(Sink):
 
     def publish(self, event):
         data = event.json()
+        self.producer.poll(0)
         self.producer.produce(self.topic, data.encode('utf-8'), callback=delivery_report)
 
 
