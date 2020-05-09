@@ -44,7 +44,7 @@ class MysqlSource(Source):
         del settings['name']
         self.metatable = Table.metadata(database_url)
         self.stream = BinLogStreamReader(connection_settings = settings, 
-                                         server_id=100,
+                                         server_id=server_id,
                                          blocking=True,
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
   

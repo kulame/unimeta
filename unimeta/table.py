@@ -468,6 +468,14 @@ class Table:
                     r[k] = datetime.fromisoformat(v)
             elif isinstance(c, DecimalColumn):
                 r[k] = str(v)
+            elif isinstance(c, IntegerColumn):
+                if c.nullable:  
+                    r[k] = v
+                else: 
+                    if v is None: #当值为空且schema要求非空 设置默认值为0
+                        r[k] = 0
+                    else:
+                        r[k] = v
             else:
                 r[k] = v
         return r
