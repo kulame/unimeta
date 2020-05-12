@@ -153,7 +153,7 @@ class Pipeline():
             raise Exception("unregister sink")
         
         mconf = parse_url(meta_url)
-        if mconf['scheme'] == 'meta':
+        if mconf['scheme'] == 'unimetad':
             self.metaserver = MetaServer(meta_url)
         else:
             raise Exception("unregister meta")
