@@ -18,6 +18,7 @@ def parse_url(url:str)->dict:
         'passwd': url.password,
         'host': url.hostname,
         'port': url.port,
+        'scheme': url.scheme
     })
 
 

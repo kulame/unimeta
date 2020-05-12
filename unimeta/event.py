@@ -104,46 +104,6 @@ class Event():
             'ctx': jsonity(self.ctx) if self.ctx else None
         })
 
-<<<<<<< HEAD
-    def avro(self) -> str:
-        """
-        {
-            "namespace": "example.avro",
-            "type": "record",
-            "name": "User",
-            "fields": [
-                {"name": "name", "type": "string"},
-                {"name": "favorite_number",  "type": ["int", "null"]},
-                {"name": "favorite_color", "type": ["string", "null"]}
-            ]
-        }
-        """
-        _avro = {
-            "namespace": "gm.event.avro",
-            "type": "record",
-        }
-        _avro['name'] = self.name
-        fields = []
-        for column in self.table.columns:
-            field  = {
-                "name": column.name,
-                "type": column.avro_types()
-            }         
-            fields.append(field)
-        _avro['fields'] = fields
-        return json.dumps(_avro)
-
-    def reg_meta(self, producer):
-        req = MetaEventReq(
-            name = self.name,
-            meta = self.avro(),
-            creator = producer.name
-        )
-        url = "{host}/metaevent".format(host=producer.metaserver)
-        r = requests.post(url, data=req.json())
-        debug(r)
-        
-=======
     def get_primary_key(self):
         k = self.table.primary_key.name
         return self.data[k]
@@ -152,7 +112,6 @@ class Event():
     def __repr__(self) -> str:
         return "{name}/{id}".format(name=self.name,id=self.get_primary_key())
     
->>>>>>> master
 
 class Topic(BaseModel):
     name: str

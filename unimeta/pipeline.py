@@ -14,6 +14,7 @@ from clickhouse_driver import Client
 import asyncio
 import json
 from confluent_kafka import Producer as KafkaProducer
+import random
 from loguru import logger
 
 class Sink():
@@ -34,14 +35,16 @@ class MysqlSource(Source):
     metatable:Dict[str,Table]
     stream: BinLogStreamReader
 
-    def __init__(self,database_url):
+    def __init__(self,database_url,server_id:int=None):
+        if server_id is None:
+            server_id = random.randint(1,1000)
         Source.__init__(self)
         settings = parse_url(database_url)
         settings['db'] = settings['name']
         del settings['name']
         self.metatable = Table.metadata(database_url)
         self.stream = BinLogStreamReader(connection_settings = settings, 
-                                         server_id=100,
+                                         server_id=server_id,
                                          blocking=True,
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
   
@@ -100,7 +103,7 @@ class KafkaSink(Sink):
     def __init__(self, database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
-        self.producer = Producer({
+        self.producer = KafkaProducer({
             'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port']),
             'queue.buffering.max.messages': 10000000,
             'batch.num.messages': 10
@@ -118,13 +121,15 @@ class KafkaSink(Sink):
 
 
 
-class Producer():
+class MetaServer():
     name:str
     metaserver:str
 
-    def __init__(self,name,metaserver):
-        self.name = name
-        self.metaserver = metaserver
+    def __init__(self,metaserver):
+        self.meta = parse_url(metaserver)
+    
+    def reg(self):
+        print(self.meta)
 
 class Pipeline():
     sink:Sink
@@ -132,24 +137,50 @@ class Pipeline():
     meta:dict
     metaserver:str
     
-    def __init__(self,source:Source, sink:Sink, producer:Producer = None):
-        self.source = source
-        self.sink = sink
-        self.producer = producer
-        self.meta = {}
+    def __init__(self,source_url:str, sink_url:str, meta_url:str):
+        sconf = parse_url(source_url)
+        if sconf['scheme'] == 'mysql':
+            self.source = MysqlSource(source_url)
+        else:
+            raise Exception("unregister source")
+        
+        dconf = parse_url(sink_url)
+        if dconf['scheme'] == 'clickhouse':
+            self.sink = ClickHouseSink(sink_url)
+        elif dconf['scheme'] == 'kafka':
+            self.sink = KafkaSink(sink_url)
+        else:
+            raise Exception("unregister sink")
+        
+        mconf = parse_url(meta_url)
+        if mconf['scheme'] == 'meta':
+            self.metaserver = MetaServer(meta_url)
+        else:
+            raise Exception("unregister meta")
 
     def sync_tables(self):
         tables = self.source.metatable.values()
         for table in tables:
+            print(table.name)
             ddl = table.get_ch_ddl()
             if ddl is not None:
                 self.sink.execute(ddl)
-    
+
+    def rebuild_table(self, table):
+        source_tables = self.source.metatable.values()
+        for item in source_tables:
+            if table == item.name:
+                delete_stmt = "drop table {db}.{table}".format(db=item.db_name,table=table)
+                create_stmt = item.get_ch_ddl()
+                self.sink.execute(delete_stmt)
+                self.sink.execute(create_stmt)
+
+
     def sync(self):
         for event in self.source.subscribe():
             if event.name not in self.meta:
                 #if self.metaserver is not None:
-                event.reg_meta(self.producer)
+                self.metaserver.reg(event)
             self.sink.publish(event)
 
 

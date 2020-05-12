@@ -4,17 +4,14 @@ config.read(".env")
 import asyncio
 from unimeta.pipeline import MysqlSource, ClickHouseSink, KafkaSink, Pipeline
 from devtools import debug
-from unimeta.pipeline import Producer
+from unimeta.pipeline import MetaServer
 
 
 def sync() -> None:
-    mysql_url = config['mysql'].get('url')
-    kafka_url = config['kafka'].get('url')
-    source = MysqlSource(database_url=mysql_url)
-    sink = KafkaSink(database_url = kafka_url)
-    producer = Producer(metaserver="http://127.0.0.1:8000",name="test")
-    pipe = Pipeline(source, sink, producer)
-    pipe.sync_tables()
+    source_url = config['source'].get('url')
+    sink_url = config['sink'].get('url')
+    meta_url = config['meta'].get('url')
+    pipe = Pipeline(source_url, sink_url, meta_url)
     pipe.sync()
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ REQUIRES = [
     "clickhouse_driver",
     "mysqlclient",
     "fastapi",
-    "uvicorn"
+    "uvicorn",
     "confluent-kafka==1.3.0"
 ]
 

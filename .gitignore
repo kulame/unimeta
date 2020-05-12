@@ -1,4 +1,5 @@
 *.log
+.env
 *.pyc
 .cache/
 .coverage
