@@ -1,16 +1,19 @@
 ## raodmap
 
-### 0.0.5
+### 0.1.0
 - meta server
 
-### 0.0.6 
-- kafka source
+### 0.1.1
+- batch mode
 
-### 0.0.7 
+### 0.1.2 
 - elasticsearch sink
 
-### 0.0.8
+### 0.1.3
 - mysql sink
 
-### 0.0.9
+### 0.1.4
 - redis sink
+
+### 0.2.0
+- ddl transfer
