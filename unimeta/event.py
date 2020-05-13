@@ -113,6 +113,21 @@ class Event():
         return "{name}/{id}".format(name=self.name,id=self.get_primary_key())
     
 
+    def avro(self):
+        _schema = {
+            'name': self.name,
+            'namespace': 'gengmei.event.{type}'.format(type=self.type),
+            'type': 'record',
+        }
+        fields = []
+        for column in self.table.columns:
+            field = {}
+            field['name'] = column.name
+            field['type'] = column.avro_types()
+            fields.append(field)
+        _schema['fields'] = fields
+        return _schema
+
 class Topic(BaseModel):
     name: str
     type: TopicType = TopicType.FULL

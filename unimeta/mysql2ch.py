@@ -12,6 +12,7 @@ def sync() -> None:
     sink_url = config['sink'].get('url')
     meta_url = config['meta'].get('url')
     pipe = Pipeline(source_url, sink_url, meta_url)
+    pipe.sync_tables()
     pipe.sync()
 
 if __name__ == "__main__":

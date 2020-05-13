@@ -16,6 +16,7 @@ import json
 from confluent_kafka import Producer as KafkaProducer
 import random
 from loguru import logger
+import requests
 
 class Sink():
     
@@ -42,6 +43,7 @@ class MysqlSource(Source):
         settings = parse_url(database_url)
         settings['db'] = settings['name']
         del settings['name']
+        del settings['scheme']
         self.metatable = Table.metadata(database_url)
         self.stream = BinLogStreamReader(connection_settings = settings, 
                                          server_id=server_id,
@@ -82,7 +84,11 @@ class ClickHouseSink(Sink):
         print(settings)
         self.ch = Client(host=settings['host'],
                          port=settings['port'],
-                         database=settings['name'])
+                         database=settings['name'],
+                         user=settings['user'],
+                         password=settings['passwd'])
+                    
+
     
     def execute(self, query):
         return self.ch.execute(query)
@@ -124,12 +130,26 @@ class KafkaSink(Sink):
 class MetaServer():
     name:str
     metaserver:str
+    tables:dict
 
     def __init__(self,metaserver):
         self.meta = parse_url(metaserver)
+        self.tables = {}
     
-    def reg(self):
-        print(self.meta)
+    def reg(self,event):
+        if event.name in self.tables:
+            return 
+
+        meta_url = "http://{host}:{port}/api/meta/events".format(
+            host=self.meta['host'],
+            port=self.meta['port'])
+        data = {
+            "name":event.name,
+            "meta":event.avro(),
+            "producer":self.meta['user']
+        }
+        requests.post(meta_url,json=data)
+        self.tables[event.name] = event.table 
 
 class Pipeline():
     sink:Sink
@@ -137,31 +157,31 @@ class Pipeline():
     meta:dict
     metaserver:str
     
-    def __init__(self,source_url:str, sink_url:str, meta_url:str):
-        sconf = parse_url(source_url)
+    def __init__(self,source:str, sink:str, meta:str):
+        sconf = parse_url(source)
         if sconf['scheme'] == 'mysql':
-            self.source = MysqlSource(source_url)
+            self.source = MysqlSource(source)
         else:
             raise Exception("unregister source")
         
-        dconf = parse_url(sink_url)
+        dconf = parse_url(sink)
         if dconf['scheme'] == 'clickhouse':
-            self.sink = ClickHouseSink(sink_url)
+            self.sink = ClickHouseSink(sink)
         elif dconf['scheme'] == 'kafka':
-            self.sink = KafkaSink(sink_url)
+            self.sink = KafkaSink(sink)
         else:
             raise Exception("unregister sink")
         
-        mconf = parse_url(meta_url)
-        if mconf['scheme'] == 'meta':
-            self.metaserver = MetaServer(meta_url)
+        mconf = parse_url(meta)
+        if mconf['scheme'] == 'unimetad':
+            self.metaserver = MetaServer(meta)
         else:
             raise Exception("unregister meta")
+        
 
     def sync_tables(self):
         tables = self.source.metatable.values()
         for table in tables:
-            print(table.name)
             ddl = table.get_ch_ddl()
             if ddl is not None:
                 self.sink.execute(ddl)
@@ -178,9 +198,7 @@ class Pipeline():
 
     def sync(self):
         for event in self.source.subscribe():
-            if event.name not in self.meta:
-                #if self.metaserver is not None:
-                self.metaserver.reg(event)
+            self.metaserver.reg(event)
             self.sink.publish(event)
 
 

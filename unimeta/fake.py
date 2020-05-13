@@ -19,7 +19,7 @@ config = configparser.ConfigParser()
 config.read(".env")
   
 async def fake() -> None:
-    database_url = config['mysql'].get("url")
+    database_url = config['source'].get("url")
 
     meta = Table.metadata(database_url)
     debug(meta)
