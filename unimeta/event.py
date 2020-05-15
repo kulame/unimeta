@@ -19,7 +19,7 @@ class EventType(Enum):
     INSERT = auto()  
     UPDATE = auto()
     DELETE = auto()
-
+    UPSERT = auto()
 class TopicType(Enum):
     FULL = 1
     LATEST = 2

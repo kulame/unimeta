@@ -82,7 +82,14 @@ class ClickHouseSink(Sink):
         Source.__init__(self)
         settings = parse_url(database_url)
         print(settings)
-        self.ch = Client(host=settings['host'],
+        user = settings['user']
+        passwd = settings['passwd']
+        if user is None:
+            self.ch = Client(host=settings['host'],
+                         port=settings['port'],
+                         database=settings['name'])
+        else:
+            self.ch = Client(host=settings['host'],
                          port=settings['port'],
                          database=settings['name'],
                          user=settings['user'],
@@ -139,7 +146,9 @@ class MetaServer():
     def reg(self,event):
         if event.name in self.tables:
             return 
-
+        port = self.meta['port']
+        if port is None:
+            port = 80
         meta_url = "http://{host}:{port}/api/meta/events".format(
             host=self.meta['host'],
             port=self.meta['port'])
