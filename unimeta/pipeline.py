@@ -10,13 +10,17 @@ from devtools import debug
 from unimeta.event import Event, EventType
 from unimeta.table import Table
 from clickhouse_driver import Client
-
+import sys
 import asyncio
 import json
-from confluent_kafka import Producer as KafkaProducer
 import random
 from loguru import logger
 import requests
+from concurrent.futures import ProcessPoolExecutor
+import aiohttp
+from aiokafka import AIOKafkaProducer
+from aioch import Client
+
 
 class Sink():
     
@@ -51,7 +55,7 @@ class MysqlSource(Source):
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
   
 
-    def subscribe(self):
+    async def subscribe(self):
         for binlogevent in self.stream:
             key = "{db}/{table}".format(db=binlogevent.schema, table=binlogevent.table)
             table = self.metatable.get(key)
@@ -80,28 +84,28 @@ class ClickHouseSink(Sink):
     
     def __init__(self, database_url):
         Source.__init__(self)
-        settings = parse_url(database_url)
-        print(settings)
-        user = settings['user']
-        passwd = settings['passwd']
-        if user is None:
-            self.ch = Client(host=settings['host'],
-                         port=settings['port'],
-                         database=settings['name'])
-        else:
-            self.ch = Client(host=settings['host'],
-                         port=settings['port'],
-                         database=settings['name'],
-                         user=settings['user'],
-                         password=settings['passwd'])
-                    
+        self.client = Client.from_url(database_url)
 
+    async def start(self):
+        pass
+
+    async def execute(self, query):
+        self.client.execute(query)
     
-    def execute(self, query):
-        return self.ch.execute(query)
-    
-    def publish(self, event):
-        return event.insert_ch(self.ch)
+    async def publish(self, event):
+        tpl = """ INSERT INTO {table_name}
+            ({columns})
+            VALUES
+        """
+        columns = [column.name for column in event.table.columns]
+        sql = tpl.format(table_name="{db}.{table}".format(db=event.table.db_name, table=event.table.name),
+                   columns=",".join(columns))
+        try:
+            await self.client.execute(sql,[event.data])
+        except:
+            logger.error(event.data)
+            logger.exception("what?")
+        #logger.success("publish {event}　success".format(event=str(event)))
 
 
 def delivery_report(err, msg):
@@ -116,21 +120,27 @@ class KafkaSink(Sink):
     def __init__(self, database_url):
         Source.__init__(self)
         settings = parse_url(database_url)
-        self.producer = KafkaProducer({
-            'bootstrap.servers': '{host}:{port}'.format(host=settings['host'],port=settings['port']),
-            'queue.buffering.max.messages': 10000000,
-            'batch.num.messages': 10
-        })
+        loop = asyncio.get_event_loop()
+        self.producer = AIOKafkaProducer(
+            loop=loop,
+            bootstrap_servers = '{host}:{port}'.format(host=settings['host'],port=settings['port']),
+            
+        )
+        self.producer.start()
         self.topic = settings['name']
         debug(self.producer)
 
+    async def start(self):
+        await self.producer.start()
+   
     def execute(self, query):
         pass
 
-    def publish(self, event):
+    async def publish(self, event):
         data = event.json()
-        self.producer.poll(0)
-        self.producer.produce(self.topic, data.encode('utf-8'), callback=delivery_report)
+        await self.producer.send(self.topic, data.encode('utf-8'))
+
+        #logger.success("publish {event}　success".format(event=str(event)))
 
 
 
@@ -143,7 +153,7 @@ class MetaServer():
         self.meta = parse_url(metaserver)
         self.tables = {}
     
-    def reg(self,event):
+    async def reg(self,event):
         if event.name in self.tables:
             return 
         port = self.meta['port']
@@ -157,8 +167,14 @@ class MetaServer():
             "meta":event.avro(),
             "producer":self.meta['user']
         }
-        requests.post(meta_url,json=data)
-        self.tables[event.name] = event.table 
+        async with aiohttp.ClientSession() as session:
+            async with session.post(meta_url, json=data) as response:
+                self.tables[event.name] = event.table 
+
+
+
+def actor_done(r):
+    logger.success('actor done')
 
 class Pipeline():
     sink:Sink
@@ -186,7 +202,6 @@ class Pipeline():
             self.metaserver = MetaServer(meta)
         else:
             raise Exception("unregister meta")
-        
 
     def sync_tables(self):
         tables = self.source.metatable.values()
@@ -205,9 +220,8 @@ class Pipeline():
                 self.sink.execute(create_stmt)
 
 
-    def sync(self):
-        for event in self.source.subscribe():
-            self.metaserver.reg(event)
-            self.sink.publish(event)
-
-
+    async def sync(self):
+        await self.sink.start()
+        async for event in self.source.subscribe():
+            await self.metaserver.reg(event)
+            await self.sink.publish(event)

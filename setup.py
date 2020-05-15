@@ -30,7 +30,7 @@ REQUIRES = [
     "mysqlclient",
     "fastapi",
     "uvicorn",
-    "confluent-kafka==1.3.0"
+    "aiokafka"
 ]
 
 kwargs = {
