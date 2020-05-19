@@ -341,7 +341,7 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
         debug(sqlcolumn)
 
 
-def get_column_from_kv(k:str, v:Optional[List[str],str]) -> Column:
+def get_column_from_meta(k:str, v:Optional[List[str],str],is_primary:bool) -> Column:
     nullable = False
     if isinstance(v,list):
         v.remove("null")
@@ -351,27 +351,19 @@ def get_column_from_kv(k:str, v:Optional[List[str],str]) -> Column:
         v = v[0]
     if v == "string":
         column = StringColumn()
-        column.name = k
-        column.nullable = nullable
     elif v == "int":
         column = IntegerColumn()
-        column.name = k
-        column.nullable = nullable
     elif v == "boolean":
         column = BooleanColumn()
-        column.name = k
-        column.nullable = nullable
     elif v == "float":
         column = FloatColumn()
-        column.name = k
-        column.nullable = nullable
     elif v == "bytes":
         column =StringColumn()
-        column.name = k
-        column.nullable = nullable
     else:
         raise Exception("unknown data type")
-
+    column.name = k
+    column.nullable = nullable
+    column.primary_key = is_primary
     return column
 class ClickhouseTableTemplate():
 
@@ -465,6 +457,7 @@ class Table:
             table.primary_key = get_column_from_sql(key)
             if key.name in meta.keys():
                 meta[key.name].primary_key = True
+                table.primary_key = meta[key.name]
         
         return table
 
@@ -475,11 +468,17 @@ class Table:
         table.name = avro['name']
         fields = avro['fields']
         meta = {}
+        table.primary_key = None
         for field in fields:
             k = field['name']
             v = field['type']
-            column = get_column_from_kv(k,v)
+            is_primary = field.get('primary_key',False)
+            column = get_column_from_meta(k,v,is_primary)
             meta[k] = column
+            if is_primary:
+                table.primary_key = column
+        if table.primary_key is None:
+            raise Exception("no primary key in this table")
         table.columns = meta.values()
         return table
 

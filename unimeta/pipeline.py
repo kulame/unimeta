@@ -301,7 +301,6 @@ class Pipeline():
         async for event in self.source.subscribe():
             debug(event)
             await self.metaserver.reg(event)
-            continue
             logger.warning("reg")
             await self.sink.publish(event)
             logger.warning("pub") 

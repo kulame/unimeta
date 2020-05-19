@@ -2,7 +2,7 @@ from __future__ import annotations
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel,BaseConfig, Json, create_model
 from asyncio import BaseEventLoop
-from enum import Enum, auto
+from enum import IntEnum, auto
 from typing import List, Optional
 import uuid
 from loguru import logger
@@ -17,12 +17,12 @@ from unimeta.model import MetaEventReq
 
 from aiokafka.structs import ConsumerRecord
 
-class EventType(Enum):
-    INSERT = auto()  
-    UPDATE = auto()
-    DELETE = auto()
-    UPSERT = auto()
-class TopicType(Enum):
+class EventType(IntEnum):
+    INSERT = 1 
+    UPDATE = 2
+    DELETE = 3
+    UPSERT = 4
+class TopicType(IntEnum):
     FULL = 1
     LATEST = 2
 
@@ -75,7 +75,7 @@ class Event():
         info = {
             'database': table.db_name,
             'table': table.name,
-            'type': event_type.name.lower()
+            'type': event_type
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
@@ -86,7 +86,7 @@ class Event():
 
     def json(self) -> str:
         return json.dumps({
-            'type': self.type.value,
+            'type': self.type,
             'name': self.name,
             'version': self.version,
             'id': self.id,
