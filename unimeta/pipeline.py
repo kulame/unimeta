@@ -69,7 +69,12 @@ class MetaServer():
         debug(meta_url)    
         async with aiohttp.ClientSession() as session:
             async with session.get(meta_url) as resp:
+                status_code = resp.status
+                if status_code == 404:
+                    logger.error("event {name} has no metatable".format(name=event_name))
+                    return 
                 data = await resp.text()
+                
                 data = json.loads(data)
                 data = data['data']
                 debug(data)
@@ -225,21 +230,24 @@ class KafkaSource(Source):
 
     async def subscribe(self):
         async for msg in self.consumer:
-            debug(msg)
             value = json.loads(msg.value.decode('utf8'))
             event_name = value.get("name")
             version = value.get("version")
             table_key = "{name}/{version}".format(name=event_name, version=version)
             table = await self.meta.get(event_name,version,self.name)
-            event = Event(event_type=value.get('type'),
+            if table:
+                event = Event(event_type=value.get('type'),
                     name=value.get('name'),
                     data=value.get('data'),
                     id=value.get('id'),
                     table = table,
                     version = value.get('version'),
                     ctx = value.get('ctx'))
-            debug(event)
-            yield event
+                debug(event)
+                yield event
+            else:
+                logger.error("{key} has no metatable".format(key=table_key))
+
 
 
 
@@ -300,7 +308,7 @@ class Pipeline():
     async def sync(self):
         async for event in self.source.subscribe():
             debug(event)
-            await self.metaserver.reg(event)
-            logger.warning("reg")
+            table = await self.metaserver.reg(event)
+            if table is None:
+                continue
             await self.sink.publish(event)
-            logger.warning("pub") 
