@@ -31,14 +31,14 @@ def async_adapter(wrapped_func):
 
 
 def test_parse() -> None:
-    database_url = config['mysql'].get("url")
+    database_url = config['source'].get("url")
     db = parse_url(database_url)
     debug(db)
 
 @async_adapter
 async def test_mock() -> None:
     meta = sqlalchemy.MetaData()
-    database_url = config['mysql'].get("url")
+    database_url = config['source'].get("url")
     debug(database_url)
 
     engine = sqlalchemy.create_engine(database_url)

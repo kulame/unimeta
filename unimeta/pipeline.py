@@ -18,7 +18,7 @@ from loguru import logger
 import requests
 from concurrent.futures import ProcessPoolExecutor
 import aiohttp
-from aiokafka import AIOKafkaProducer
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from aioch import Client
 
 
@@ -102,6 +102,7 @@ class ClickHouseSink(Sink):
                    columns=",".join(columns))
         try:
             await self.client.execute(sql,[event.data])
+            logger.success("{sql} insert clickhouse".format(sql=sql))
         except:
             logger.error(event.data)
             logger.exception("what?")
@@ -118,13 +119,13 @@ def delivery_report(err, msg):
 class KafkaSink(Sink):
 
     def __init__(self, database_url):
-        Source.__init__(self)
+        Sink.__init__(self)
         settings = parse_url(database_url)
         loop = asyncio.get_event_loop()
+        bootstrap = '{host}:{port}'.format(host=settings['host'],port=settings['port'])
         self.producer = AIOKafkaProducer(
             loop=loop,
-            bootstrap_servers = '{host}:{port}'.format(host=settings['host'],port=settings['port']),
-            
+            bootstrap_servers = bootstrap
         )
         self.producer.start()
         self.topic = settings['name']
@@ -142,6 +143,31 @@ class KafkaSink(Sink):
 
         #logger.success("publish {event}　success".format(event=str(event)))
 
+class KafkaSource(Source):
+
+    def __init__(self, database_url):
+        Source.__init__(self)
+        settings = parse_url(database_url)
+        name = settings['name']
+        user = settings['user']
+        if user is None:
+            user = "default"
+        loop = asyncio.get_event_loop()
+        bootstrap = '{host}:{port}'.format(host=settings['host'],port=settings['port'])
+        self.consumer = AIOKafkaConsumer(
+            name, loop=loop,
+            bootstrap_servers = bootstrap,
+            group_id = user
+        )
+
+    async def start(self):
+        await self.consumer.start()
+
+    async def subscribe(self):
+        async for msg in self.consumer:
+            print(msg)
+            yield msg
+        
 
 
 class MetaServer():
@@ -186,6 +212,8 @@ class Pipeline():
         sconf = parse_url(source)
         if sconf['scheme'] == 'mysql':
             self.source = MysqlSource(source)
+        elif sconf['scheme'] == 'kafka':
+            self.source = KafkaSource(source)
         else:
             raise Exception("unregister source")
         
@@ -223,5 +251,7 @@ class Pipeline():
     async def sync(self):
         await self.sink.start()
         async for event in self.source.subscribe():
+            debug(event)
+            continue
             await self.metaserver.reg(event)
             await self.sink.publish(event)

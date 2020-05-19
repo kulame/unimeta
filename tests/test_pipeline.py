@@ -10,6 +10,6 @@ config = configparser.ConfigParser()
 config.read(".env")
 
 def test_kafkasink() -> None:
-    database_url = config['kafka'].get("url")
+    database_url = config['sink'].get("url")
     sink = KafkaSink(database_url)
     

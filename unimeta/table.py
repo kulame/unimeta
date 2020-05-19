@@ -126,6 +126,9 @@ class StringColumn(Column):
             return "string"
 
 
+class PhoneField(StringColumn):
+    pass
+
 
 
 class TextColumn(Column):
