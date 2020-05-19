@@ -12,6 +12,7 @@ async def sync() -> None:
     sink_url = config['sink'].get('url')
     meta_url = config['meta'].get('url')
     pipe = Pipeline(source_url, sink_url, meta_url)
+    await pipe.start()
     pipe.sync_tables()
     await pipe.sync()
 

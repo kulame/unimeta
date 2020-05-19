@@ -15,6 +15,8 @@ from unimeta.table import Table, DDLTemplate
 from unimeta.libs.libformat import jsonity
 from unimeta.model import MetaEventReq
 
+from aiokafka.structs import ConsumerRecord
+
 class EventType(Enum):
     INSERT = auto()  
     UPDATE = auto()
@@ -52,14 +54,14 @@ class Event():
     data: dict = None
     ctx: Context = None
 
-    def __init__(self, event_type:EventType,name:str,table:Table,data:dict,ctx:Context=None):
-        self.id = uuid.uuid1().hex
+    def __init__(self, id, event_type:EventType,name:str,table:Table,data:dict,ctx:Context=None,version=0):
+        self.id = id 
         self.type = event_type
         self.name = name
         self.data = data
         self.ctx = ctx
         self.table = table
-
+        self.version = version
 
     @classmethod 
     def parse_binlog(cls,table:Table, event_type:EventType,raw:dict) -> Event:
@@ -77,22 +79,10 @@ class Event():
         }
         name = 'mysql://{database}/{table}/{type}'.format(**info)
         data = table.normalize(values)
-        event = Event(event_type=event_type,name=name,data=data, table=table)
+        id = uuid.uuid1().hex 
+        event = Event(id=id,event_type=event_type,name=name,data=data, table=table)
         return event
-
-    def insert_ch(self,ch):
-        tpl = """ INSERT INTO {table_name}
-            ({columns})
-            VALUES
-        """
-        columns = [column.name for column in self.table.columns]
-        sql = tpl.format(table_name="{db}.{table}".format(db=self.table.db_name, table=self.table.name),
-                   columns=",".join(columns))
-        try:
-            ch.execute(sql,[self.data])
-        except:
-            logger.error(self.data)
-            logger.exception("what?")
+    
 
     def json(self) -> str:
         return json.dumps({
@@ -124,6 +114,7 @@ class Event():
             field = {}
             field['name'] = column.name
             field['type'] = column.avro_types()
+            field['primary_key'] = column.primary_key
             fields.append(field)
         _schema['fields'] = fields
         return _schema

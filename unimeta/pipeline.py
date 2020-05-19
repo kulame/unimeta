@@ -20,19 +20,77 @@ from concurrent.futures import ProcessPoolExecutor
 import aiohttp
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from aioch import Client
+import urllib
+
+
+class MetaServer():
+    name:str
+    metaserver:str
+    tables:dict
+
+    def __init__(self,metaserver):
+        self.meta = parse_url(metaserver)
+        self.tables = {}
+    
+    async def reg(self,event):
+        table_key = "{name}/{version}".format(name=event.name,version=event.version)
+        if table_key in self.tables:
+            return 
+        port = self.meta['port']
+        if port is None:
+            port = 80
+        meta_url = "http://{host}:{port}/api/meta/events/".format(
+            host=self.meta['host'],
+            port=self.meta['port'])
+        data = {
+            "name":event.name,
+            "meta":event.avro(),
+            "producer":self.meta['user'],
+            'dataframe':event.table.name,
+            'dataset': event.table.db_name,
+            "scheme": self.meta['scheme'],
+            "host": self.meta["host"],
+            "port": self.meta["port"]
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(meta_url, json=data) as response:
+                self.tables[table_key] = event.table 
+
+    async def get(self, event_name:str, version:int,dbname:str) -> Table:
+        table_key = "{name}/{version}".format(name=event_name,version=version)
+        if table_key in self.tables:
+            return self.tables[table_key]
+        name = urllib.parse.quote(event_name) 
+        meta_url =   "http://{host}:{port}/api/meta/events/?name={name}&version={version}".format(
+            host=self.meta['host'],
+            port=self.meta['port'],
+            name=name,
+            version = version)
+        debug(meta_url)    
+        async with aiohttp.ClientSession() as session:
+            async with session.get(meta_url) as resp:
+                data = await resp.text()
+                data = json.loads(data)
+                data = data['data']
+                debug(data)
+                event_id = data['id']
+                meta = data['meta']
+                table = Table.read_avro(meta,dbname,version)
+                self.tables[table_key] = table
+                return table
 
 
 class Sink():
     
-    def publish(self):
+    async def publish(self):
         pass
 
 class Source():
 
-    def scan(self):
+    async def subscribe(self):
         pass
 
-    def subscribe(self):
+    async def start(self):
         pass
 
 
@@ -40,7 +98,7 @@ class MysqlSource(Source):
     metatable:Dict[str,Table]
     stream: BinLogStreamReader
 
-    def __init__(self,database_url,server_id:int=None):
+    def __init__(self,database_url, meta:MetaServer, server_id=None):
         if server_id is None:
             server_id = random.randint(1,1000)
         Source.__init__(self)
@@ -53,7 +111,9 @@ class MysqlSource(Source):
                                          server_id=server_id,
                                          blocking=True,
                                          only_events=[DeleteRowsEvent, WriteRowsEvent, UpdateRowsEvent])
-  
+
+    async def start(self):
+        pass 
 
     async def subscribe(self):
         for binlogevent in self.stream:
@@ -123,13 +183,14 @@ class KafkaSink(Sink):
         settings = parse_url(database_url)
         loop = asyncio.get_event_loop()
         bootstrap = '{host}:{port}'.format(host=settings['host'],port=settings['port'])
+        logger.info(bootstrap)
         self.producer = AIOKafkaProducer(
             loop=loop,
             bootstrap_servers = bootstrap
         )
-        self.producer.start()
         self.topic = settings['name']
         debug(self.producer)
+
 
     async def start(self):
         await self.producer.start()
@@ -139,68 +200,49 @@ class KafkaSink(Sink):
 
     async def publish(self, event):
         data = event.json()
-        await self.producer.send(self.topic, data.encode('utf-8'))
-
-        #logger.success("publish {event}　success".format(event=str(event)))
+        await self.producer.send_and_wait(self.topic, data.encode('utf-8'))
 
 class KafkaSource(Source):
 
-    def __init__(self, database_url):
+    def __init__(self, database_url, meta:MetaServer):
         Source.__init__(self)
         settings = parse_url(database_url)
-        name = settings['name']
+        self.name = settings['name']
         user = settings['user']
         if user is None:
             user = "default"
         loop = asyncio.get_event_loop()
         bootstrap = '{host}:{port}'.format(host=settings['host'],port=settings['port'])
         self.consumer = AIOKafkaConsumer(
-            name, loop=loop,
+            self.name, loop=loop,
             bootstrap_servers = bootstrap,
             group_id = user
         )
+        self.meta = meta
 
     async def start(self):
         await self.consumer.start()
 
     async def subscribe(self):
         async for msg in self.consumer:
-            print(msg)
-            yield msg
-        
-
-
-class MetaServer():
-    name:str
-    metaserver:str
-    tables:dict
-
-    def __init__(self,metaserver):
-        self.meta = parse_url(metaserver)
-        self.tables = {}
-    
-    async def reg(self,event):
-        if event.name in self.tables:
-            return 
-        port = self.meta['port']
-        if port is None:
-            port = 80
-        meta_url = "http://{host}:{port}/api/meta/events".format(
-            host=self.meta['host'],
-            port=self.meta['port'])
-        data = {
-            "name":event.name,
-            "meta":event.avro(),
-            "producer":self.meta['user']
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(meta_url, json=data) as response:
-                self.tables[event.name] = event.table 
+            debug(msg)
+            value = json.loads(msg.value.decode('utf8'))
+            event_name = value.get("name")
+            version = value.get("version")
+            table_key = "{name}/{version}".format(name=event_name, version=version)
+            table = await self.meta.get(event_name,version,self.name)
+            event = Event(event_type=value.get('type'),
+                    name=value.get('name'),
+                    data=value.get('data'),
+                    id=value.get('id'),
+                    table = table,
+                    version = value.get('version'),
+                    ctx = value.get('ctx'))
+            debug(event)
+            yield event
 
 
 
-def actor_done(r):
-    logger.success('actor done')
 
 class Pipeline():
     sink:Sink
@@ -209,11 +251,17 @@ class Pipeline():
     metaserver:str
     
     def __init__(self,source:str, sink:str, meta:str):
+        mconf = parse_url(meta)
+        if mconf['scheme'] == 'unimetad':
+            self.metaserver = MetaServer(meta)
+        else:
+            raise Exception("unregister meta")
+
         sconf = parse_url(source)
         if sconf['scheme'] == 'mysql':
-            self.source = MysqlSource(source)
+            self.source = MysqlSource(source, meta=self.metaserver)
         elif sconf['scheme'] == 'kafka':
-            self.source = KafkaSource(source)
+            self.source = KafkaSource(source, meta=self.metaserver)
         else:
             raise Exception("unregister source")
         
@@ -225,13 +273,11 @@ class Pipeline():
         else:
             raise Exception("unregister sink")
         
-        mconf = parse_url(meta)
-        if mconf['scheme'] == 'unimetad':
-            self.metaserver = MetaServer(meta)
-        else:
-            raise Exception("unregister meta")
+
 
     def sync_tables(self):
+        if isinstance(self.source, KafkaSource):
+            return
         tables = self.source.metatable.values()
         for table in tables:
             ddl = table.get_ch_ddl()
@@ -247,11 +293,15 @@ class Pipeline():
                 self.sink.execute(delete_stmt)
                 self.sink.execute(create_stmt)
 
+    async def start(self):
+        await self.source.start()
+        await self.sink.start()
 
     async def sync(self):
-        await self.sink.start()
         async for event in self.source.subscribe():
             debug(event)
-            continue
             await self.metaserver.reg(event)
+            continue
+            logger.warning("reg")
             await self.sink.publish(event)
+            logger.warning("pub") 

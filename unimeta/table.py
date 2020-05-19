@@ -340,6 +340,39 @@ def get_column_from_sql(sqlcolumn:SQLColumn) -> Column:
     else:
         debug(sqlcolumn)
 
+
+def get_column_from_kv(k:str, v:Optional[List[str],str]) -> Column:
+    nullable = False
+    if isinstance(v,list):
+        v.remove("null")
+        nullable = True
+        if len(v) > 1:
+            raise Exception("error type union")
+        v = v[0]
+    if v == "string":
+        column = StringColumn()
+        column.name = k
+        column.nullable = nullable
+    elif v == "int":
+        column = IntegerColumn()
+        column.name = k
+        column.nullable = nullable
+    elif v == "boolean":
+        column = BooleanColumn()
+        column.name = k
+        column.nullable = nullable
+    elif v == "float":
+        column = FloatColumn()
+        column.name = k
+        column.nullable = nullable
+    elif v == "bytes":
+        column =StringColumn()
+        column.name = k
+        column.nullable = nullable
+    else:
+        raise Exception("unknown data type")
+
+    return column
 class ClickhouseTableTemplate():
 
     @classmethod
@@ -434,6 +467,23 @@ class Table:
                 meta[key.name].primary_key = True
         
         return table
+
+    @classmethod
+    def read_avro(cls, avro:dict, db_name:str,version:int) -> Table:
+        table = Table()
+        table.db_name = db_name
+        table.name = avro['name']
+        fields = avro['fields']
+        meta = {}
+        for field in fields:
+            k = field['name']
+            v = field['type']
+            column = get_column_from_kv(k,v)
+            meta[k] = column
+        table.columns = meta.values()
+        return table
+
+
 
     def get_primary_date_column(self) -> Column:
         for column in self.columns:
