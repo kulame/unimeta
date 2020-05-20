@@ -30,7 +30,9 @@ REQUIRES = [
     "mysqlclient",
     "fastapi",
     "uvicorn",
-    "aiokafka"
+    "aiokafka",
+    'aioch',
+    'aiohttp'
 ]
 
 kwargs = {

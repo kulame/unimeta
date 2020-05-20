@@ -14,12 +14,11 @@ $ pip install unimeta
 ```
 
 ```pycon
->>> from unimeta.pipeline import MysqlSource, ClickHouseSink, Pipeline
+>>> from unimeta.pipeline import Pipeline
 >>> mysql = "mysql://root:111111@127.0.0.1:3306/hr"
 >>> clickhouse = "clickhouse://127.0.0.1:9000/hr"
 >>> meta = "unimetad://kula@127.0.0.1:8000/mysql2ch"
 >>> pipe = Pipeline(source, sink, meta)
->>> pipe.sync_tables()
 >>> pipe.sync()
 ```
 
