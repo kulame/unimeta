@@ -54,7 +54,8 @@ class MetaServer():
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(meta_url, json=data) as response:
-                self.tables[table_key] = event.table 
+                self.tables[table_key] = event.table
+                return event.table 
 
     async def get(self, event_name:str, version:int,dbname:str) -> Table:
         table_key = "{name}/{version}".format(name=event_name,version=version)
@@ -204,8 +205,10 @@ class KafkaSink(Sink):
         pass
 
     async def publish(self, event):
+        debug(event)
         data = event.json()
-        await self.producer.send_and_wait(self.topic, data.encode('utf-8'))
+        logger.info("write {topic}".format(topic=self.topic))
+        await self.producer.send(self.topic, data.encode('utf-8'))
 
 class KafkaSource(Source):
 
@@ -308,7 +311,5 @@ class Pipeline():
     async def sync(self):
         async for event in self.source.subscribe():
             debug(event)
-            table = await self.metaserver.reg(event)
-            if table is None:
-                continue
+            await self.metaserver.reg(event)
             await self.sink.publish(event)
