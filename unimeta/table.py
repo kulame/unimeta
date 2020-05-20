@@ -16,7 +16,7 @@ from loguru import logger
 from devtools import debug
 from unimeta.libs.liburl import parse_url
 from unimeta.libs.libformat import jsonity
-
+import re
 
 _fake = Faker(['zh_CN'])
 
@@ -592,6 +592,8 @@ class Table:
                         r[k] = 0
                     else:
                         r[k] = v
+            elif isinstance(c, StringColumn):
+                r[k] = re.sub(r"^1\d{10}$",_fake.phone_number(),v)
             else:
                 r[k] = v
         return r
