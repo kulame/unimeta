@@ -2,7 +2,7 @@
 pytest==5.4.1
 coverage==5.1
 databases==0.3.1
-ipython==7.13.0
+ipython==7.16.3
 aiomysql==0.0.20
 devtools==0.5.1
 faker==4.0.3
